@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from src.data_utils import get_dataloader
 from src.model import load_dino, extract_features
-from src.learner import train_continual_graph
+from src.learner import train_continual_graph, train_task_free_graph
 from src.evaluators import evaluate_graph
 from src.baselines import run_baselines  # <--- NEW IMPORT
 from src.config import Config
@@ -24,7 +24,8 @@ def main():
     features, labels = extract_features(dino, loader)
     
     # 2. Train Your Graph
-    graph, test_feats, test_lbls = train_continual_graph(features, labels)
+    # graph, test_feats, test_lbls = train_continual_graph(features, labels)
+    graph, test_feats, test_lbls = train_task_free_graph(features, labels)
     
     # 3. Eval Your Graph
     graph_results = evaluate_graph(graph, test_feats, test_lbls)
