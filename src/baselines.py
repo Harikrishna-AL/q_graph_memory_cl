@@ -32,5 +32,18 @@ def run_baselines(train_features, train_labels, test_features, test_labels):
     lin_acc = accuracy_score(test_labels, lin_preds)
     results['Linear'] = lin_acc
     print(f"      >> Linear Accuracy: {lin_acc*100:.2f}% (Time: {time.time()-start:.2f}s)")
+
+    # Add this after your Linear Baseline training
+    print("   2b. Testing Linear Probe on OCCLUDED Data...")
+    # Create occluded test set manually
+    # (We simulate the mask by zeroing out the last 4 chunks of features)
+    # Note: DINO features are 384 dim. 8 chunks = 48 dims per chunk.
+    # Occluding last 4 chunks = Zeroing out indices [192:384]
+    X_test_occ = test_features.copy()
+    X_test_occ[:, 192:] = 0  # Zero out top half (simulation of occlusion)
+
+    lin_preds_occ = clf.predict(X_test_occ)
+    lin_acc_occ = accuracy_score(test_labels, lin_preds_occ)
+    print(f"      >> Linear Occluded Accuracy: {lin_acc_occ*100:.2f}%")
     
     return results
