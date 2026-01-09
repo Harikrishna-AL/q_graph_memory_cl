@@ -4,6 +4,7 @@ import torch
 from sklearn.cluster import MiniBatchKMeans
 from .config import Config
 from .model import ContinualGraph
+from sklearn.linear_model import SGDClassifier
 
 def train_continual_graph(features, labels):
     print(f"\n🚀 Starting {Config.N_TASKS}-Task Benchmark (Split: {int(Config.TRAIN_TEST_SPLIT*100)}/{int((1-Config.TRAIN_TEST_SPLIT)*100)})")
@@ -160,3 +161,35 @@ def train_task_free_graph(features, labels, buffer_size=1000):
     test_tensor = torch.tensor(features, dtype=torch.float32).to(Config.DEVICE)
     test_labels = torch.tensor(labels).to(Config.DEVICE)
     return graph, test_tensor, test_labels
+
+def run_sequential_linear_probe(features, labels, n_tasks=20):
+    print("\n📉 --- Running Sequential Linear Probe (The 'Forgetting' Test) ---")
+    
+    # We use SGDClassifier because it supports incremental learning (partial_fit)
+    clf = SGDClassifier(loss='log_loss', random_state=42)
+    classes = np.unique(labels)
+    
+    accuracies = []
+    
+    # Simulate 20 Tasks
+    chunk_size = len(features) // n_tasks
+    
+    for i in range(n_tasks):
+        # 1. Get Task Data
+        start = i * chunk_size
+        end = (i + 1) * chunk_size
+        X_task = features[start:end]
+        y_task = labels[start:end]
+        
+        # 2. Train ONLY on this task (Simulating streaming)
+        clf.partial_fit(X_task, y_task, classes=classes)
+        
+        # 3. Test on ALL Data (Global Accuracy)
+        # In a real scenario, we check if it remembers Task 1
+        current_acc = clf.score(features, labels)
+        accuracies.append(current_acc)
+        print(f"   Task {i+1}/{n_tasks}: Global Accuracy = {current_acc*100:.2f}%")
+
+    print(f"   ❌ Final Sequential Linear Probe Accuracy: {accuracies[-1]*100:.2f}%")
+    return accuracies[-1]
+

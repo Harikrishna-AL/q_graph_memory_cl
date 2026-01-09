@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from src.data_utils import get_dataloader
 from src.model import load_dino, extract_features
-from src.learner import train_continual_graph, train_task_free_graph
+from src.learner import run_sequential_linear_probe, train_continual_graph, train_task_free_graph
 from src.evaluators import evaluate_graph
 from src.baselines import run_baselines  # <--- NEW IMPORT
 from src.config import Config
@@ -62,6 +62,8 @@ def main():
     
     # Run
     baseline_results = run_baselines(X_train, y_train, X_test, y_test)
+    # --- Add this to your main script ---
+    run_sequential_linear_probe(features, labels)
     
     # Final Comparison Print
     print("\n🏆 FINAL SCOREBOARD (Clean Accuracy)")
