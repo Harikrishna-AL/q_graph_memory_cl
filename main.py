@@ -4,7 +4,7 @@ import numpy as np
 from src.data_utils import get_dataloader
 from src.model import load_dino, extract_features
 from src.learner import run_sequential_linear_probe, train_continual_graph, train_task_free_graph
-from src.evaluators import evaluate_graph
+from src.evaluators import evaluate_graph, compare_interpretability
 from src.baselines import run_baselines  # <--- NEW IMPORT
 from src.config import Config
 
@@ -71,5 +71,8 @@ def main():
     print(f"   NCM Baseline:        {baseline_results['NCM']*100:.2f}%")
     print(f"   Linear Baseline:     {baseline_results['Linear']*100:.2f}%")
 
+    compare_interpretability(model=dino, dataset=dataset)
+
 if __name__ == "__main__":
     main()
+    
