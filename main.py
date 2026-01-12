@@ -71,7 +71,7 @@ def main():
     print(f"   NCM Baseline:        {baseline_results['NCM']*100:.2f}%")
     print(f"   Linear Baseline:     {baseline_results['Linear']*100:.2f}%")
 
-    compare_interpretability(model=dino, dataset=dataset)
+    compare_interpretability(features, labels, dataset)
 
 if __name__ == "__main__":
     main()

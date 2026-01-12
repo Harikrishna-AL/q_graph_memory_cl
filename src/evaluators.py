@@ -7,6 +7,7 @@ from sklearn.cluster import KMeans
 from collections import defaultdict
 from scipy.spatial.distance import cdist
 
+
 def evaluate_graph(graph, test_features, test_labels):
     print("\n📊 --- Running Dual Evaluation (Clean vs Occluded) ---")
     
@@ -74,57 +75,52 @@ def _plot_results(clean_accs, occ_accs):
     plt.savefig(save_path)
     print(f"📈 Plot saved to {save_path}")
 
-def compare_interpretability(model, dataset, num_samples=2000, n_chunks=8):
+def compare_interpretability(features, labels, dataset, num_samples=2000, n_chunks=8):
     """
     Compares NPGM (Visual Words) vs NCM (Centroids) for concept retrieval.
+    Uses pre-computed features to avoid re-running the model.
     """
     print(f"🧪 Starting Interpretability Showdown (N={num_samples})...")
-    device = model.device
     
-    # --- 1. Extract Features & Prepare Data ---
-    print("   Extracting features...")
-    all_features = []
-    all_images = []
-    all_labels = []
+    # 1. Prepare Data Subset
+    # We take the first N samples from the extracted features
+    # Ensure num_samples doesn't exceed available features
+    num_samples = min(num_samples, len(features))
     
-    # We collect a subset to act as our "Database"
-    for i in range(num_samples):
-        img, label = dataset[i]
-        with torch.no_grad():
-            # Get the full 384-dim vector
-            z = model.encoder(img.unsqueeze(0).to(device)).cpu().numpy()[0]
-        all_features.append(z)
-        all_images.append(img)
-        all_labels.append(label)
-        
-    X = np.array(all_features)      # (N, D)
-    y = np.array(all_labels)        # (N,)
+    X = features[:num_samples]      # (N, D)
+    y = labels[:num_samples]        # (N,)
     N, D = X.shape
     chunk_dim = D // n_chunks
     
-    # --- 2. Train NPGM (Quantization) on the fly ---
+    # 2. Train NPGM (Quantization) on the fly
     # We simulate your Codebooks using K-Means on the first chunk
     print("   Training NPGM Codebooks (Simulation)...")
-    # Let's focus on Chunk 0 (arbitrary attribute) for the demo
+    
+    # Focus on Chunk 0 (arbitrary attribute)
     chunk_0_data = X[:, :chunk_dim]
     
     # Create Codebook for Chunk 0
     kmeans = KMeans(n_clusters=64, n_init=10, random_state=42)
     kmeans.fit(chunk_0_data)
-    codes = kmeans.labels_ # The "Visual Word" assigned to each image for Chunk 0
-    centroids_pq = kmeans.cluster_centers_
-
-    # --- 3. Train NCM (Class Means) ---
+    codes = kmeans.labels_ # The "Visual Word" assigned to each image
+    
+    # 3. Train NCM (Class Means)
     print("   Computing NCM Centroids...")
     unique_classes = np.unique(y)
     class_means = {}
     for c in unique_classes:
         class_means[c] = np.mean(X[y == c], axis=0)
 
-    # --- 4. Select a Query Image ---
-    # Pick an interesting image (e.g. index 10)
-    query_idx = 10 
-    query_cls = y[query_idx]
+    # 4. Select a Query Image
+    # Pick a random interesting image
+    np.random.seed(42) 
+    # Try to pick a class with enough samples
+    for _ in range(100):
+        query_idx = np.random.randint(0, num_samples)
+        query_cls = y[query_idx]
+        if np.sum(y == query_cls) > 5: # Ensure class has samples
+            break
+            
     query_vec = X[query_idx]
     
     print(f"   Query Image: Index {query_idx} (Class {query_cls})")
@@ -132,42 +128,37 @@ def compare_interpretability(model, dataset, num_samples=2000, n_chunks=8):
     # ==========================================
     # METHOD A: NPGM Retrieval (Exact Code Match)
     # ==========================================
-    # 1. Get the code for the query image on Chunk 0
     query_code = codes[query_idx]
-    
-    # 2. Find ALL other images that have this SAME code
-    # (Matches based on Shared Vocabulary)
     npgm_matches = [i for i, c in enumerate(codes) if c == query_code and i != query_idx]
     
     # ==========================================
     # METHOD B: NCM Retrieval (Distance to Average)
     # ==========================================
-    # 1. Get the Centroid for the Query's Class
     centroid = class_means[query_cls]
-    
-    # 2. Look at ONLY Chunk 0 of the Centroid (Fair comparison)
     centroid_chunk = centroid[:chunk_dim]
     
-    # 3. Find images whose Chunk 0 is closest to the *Centroid's* Chunk 0
-    # (Matches based on Distance to Average)
+    # Find images whose Chunk 0 is closest to the *Centroid's* Chunk 0
     dists = cdist(chunk_0_data, centroid_chunk.reshape(1, -1), metric='euclidean').flatten()
-    # Sort by distance
     ncm_matches = np.argsort(dists)
-    ncm_matches = [i for i in ncm_matches if i != query_idx] # Remove self if present
+    ncm_matches = [i for i in ncm_matches if i != query_idx] # Remove self
 
-    # --- 5. Visualization ---
-    def denorm(tensor):
-        img = tensor.permute(1, 2, 0).numpy()
+    # 5. Visualization Helper
+    def get_img(idx):
+        # Retrieve original image from dataset
+        # Note: dataset[i] returns (tensor, label)
+        img_tensor, _ = dataset[idx]
+        img = img_tensor.permute(1, 2, 0).numpy()
+        # Denormalize (ImageNet stats)
         img = img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
         return np.clip(img, 0, 1)
 
+    # 6. Plotting
     fig, axes = plt.subplots(3, 6, figsize=(16, 9))
     
     # Row 1: The Query
-    axes[0,0].imshow(denorm(all_images[query_idx]))
+    axes[0,0].imshow(get_img(query_idx))
     axes[0,0].set_title(f"QUERY\nClass {query_cls}")
     axes[0,0].axis('off')
-    # Hide the rest of row 1
     for ax in axes[0, 1:]: ax.axis('off')
 
     # Row 2: NPGM Results
@@ -176,7 +167,7 @@ def compare_interpretability(model, dataset, num_samples=2000, n_chunks=8):
     for k in range(5):
         if k < len(npgm_matches):
             idx = npgm_matches[k]
-            axes[1, k+1].imshow(denorm(all_images[idx]))
+            axes[1, k+1].imshow(get_img(idx))
             axes[1, k+1].set_title(f"Class {y[idx]}")
             axes[1, k+1].axis('off')
 
@@ -186,7 +177,7 @@ def compare_interpretability(model, dataset, num_samples=2000, n_chunks=8):
     for k in range(5):
         if k < len(ncm_matches):
             idx = ncm_matches[k]
-            axes[2, k+1].imshow(denorm(all_images[idx]))
+            axes[2, k+1].imshow(get_img(idx))
             axes[2, k+1].set_title(f"Class {y[idx]}")
             axes[2, k+1].axis('off')
 
@@ -194,6 +185,5 @@ def compare_interpretability(model, dataset, num_samples=2000, n_chunks=8):
     plt.tight_layout()
     plt.savefig('outputs/interpretability_comparison.png')
     print("✅ Saved comparison plot to outputs/interpretability_comparison.png")
-
 # --- Usage ---
 # compare_interpretability(model, train_loader.dataset)
