@@ -9,7 +9,7 @@ from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestCentroid
 from sklearn.linear_model import SGDClassifier
 
-def evaluate_graph(graph, test_features, test_labels):
+def evaluate_graph(graph, test_features, test_labels, mode='soft'):
     print("\n📊 --- Running Dual Evaluation (Clean vs Occluded) ---")
     
     # Defined Masks
@@ -18,13 +18,13 @@ def evaluate_graph(graph, test_features, test_labels):
     
     results = {}
     
-    results['clean'] = _run_eval_loop(graph, test_features, test_labels, mask_clean, "CLEAN")
-    results['occluded'] = _run_eval_loop(graph, test_features, test_labels, mask_occluded, "OCCLUDED")
+    results['clean'] = _run_eval_loop(graph, test_features, test_labels, mask_clean, "CLEAN", mode=mode)
+    results['occluded'] = _run_eval_loop(graph, test_features, test_labels, mask_occluded, "OCCLUDED", mode=mode)
     
     _plot_results(results['clean'], results['occluded'])
     return results
 
-def _run_eval_loop(graph, features, labels, mask, name):
+def _run_eval_loop(graph, features, labels, mask, name, mode='soft'):
     accuracies = []
     print(f"   Evaluating: {name}...")
     
@@ -48,7 +48,7 @@ def _run_eval_loop(graph, features, labels, mask, name):
             b_in = t_feats[i:i+bs]
             b_lbl = t_lbls[i:i+bs]
             
-            winner_idx = graph.predict(b_in, mask)
+            winner_idx = graph.predict(b_in, mask, mode=mode)
             preds = graph.labels[winner_idx]
             batch_accs.append((preds == b_lbl).float().sum().item())
             

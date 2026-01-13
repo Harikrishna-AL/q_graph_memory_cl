@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser(description="Graph Memory Continual Learning")
     parser.add_argument("--use_train", action="store_true", default=True, help="Use full TRAIN set")
     parser.add_argument("--words", type=int, default=512, help="Words per task per chunk")
+    parser.add_argument("--imode", type=str, default='soft', help="Inference mode for evaluation")
     args = parser.parse_args()
     
     Config.WORDS_PER_TASK = args.words
@@ -28,7 +29,7 @@ def main():
     graph, test_feats, test_lbls = train_task_free_graph(features, labels)
     
     # 3. Eval Your Graph (Standard Clean Eval)
-    graph_results = evaluate_graph(graph, test_feats, test_lbls)
+    graph_results = evaluate_graph(graph, test_feats, test_lbls, mode=args.imode)
     
     # --- Prepare Data Split for Comparisons ---
     print("\n--- Preparing Data for Baselines & Robustness ---")
