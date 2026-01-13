@@ -6,7 +6,8 @@ from .config import Config
 from sklearn.cluster import KMeans
 from collections import defaultdict
 from scipy.spatial.distance import cdist
-
+from sklearn.neighbors import NearestCentroid
+from sklearn.linear_model import SGDClassifier
 
 def evaluate_graph(graph, test_features, test_labels):
     print("\n📊 --- Running Dual Evaluation (Clean vs Occluded) ---")
@@ -74,12 +75,6 @@ def _plot_results(clean_accs, occ_accs):
     save_path = "outputs/results_plot.png"
     plt.savefig(save_path)
     print(f"📈 Plot saved to {save_path}")
-
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from scipy.spatial.distance import cdist
 
 def compare_interpretability(features, labels, dataset, num_samples=2000, n_chunks=8):
     """
@@ -239,3 +234,105 @@ def compare_interpretability(features, labels, dataset, num_samples=2000, n_chun
     plt.tight_layout()
     plt.savefig('outputs/interpretability_hard_test.png')
     print("✅ Saved HARD test plot to outputs/interpretability_hard_test.png")
+
+# --- Helper: Apply Occlusion ---
+def apply_feature_occlusion(features, p_occlusion):
+    """
+    Zeroes out the bottom p% of feature dimensions to simulate occlusion.
+    """
+    if p_occlusion <= 0.0:
+        return features
+        
+    X_occ = features.copy()
+    N, D = X_occ.shape
+    # Calculate how many features to zero out
+    n_mask = int(D * p_occlusion)
+    
+    # Mask the last n_mask dimensions (Bottom-up occlusion proxy)
+    if n_mask > 0:
+        X_occ[:, -n_mask:] = 0.0
+        
+    return X_occ
+
+# --- Main Robustness Experiment ---
+def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_graph_fn):
+    """
+    Compares NPGM (Graph), NCM, and Linear Probe under increasing occlusion.
+    
+    Args:
+        graph: The trained NPGM graph object.
+        X_train, y_train: Data to train the baselines on the fly.
+        X_test, y_test: Data to corrupt and evaluate on.
+        evaluate_graph_fn: Your existing function `evaluate_graph(graph, feats, lbls)`
+                           that returns a dict with accuracy.
+    """
+    print("\n🛡️ Starting Occlusion Robustness Stress Test...")
+    
+    # 1. Train Baselines on Clean Data (On the fly)
+    print("   Training Baselines (NCM & Linear)...")
+    
+    # NCM Baseline
+    ncm = NearestCentroid()
+    ncm.fit(X_train, y_train)
+    
+    # Linear Probe (Parametric Baseline)
+    # Using SGDClassifier as a fast approximation of a linear layer
+    linear = SGDClassifier(loss='log_loss', max_iter=1000, tol=1e-3, random_state=42)
+    linear.fit(X_train, y_train)
+
+    # 2. Define Occlusion Levels (0% to 50%)
+    levels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    
+    # Store results
+    acc_npgm = []
+    acc_ncm = []
+    acc_lin = []
+
+    print(f"   Testing levels: {levels}")
+
+    for p in levels:
+        # Create corrupted test set
+        X_test_corrupt = apply_feature_occlusion(X_test, p)
+        
+        # A. Evaluate Baselines
+        score_ncm = ncm.score(X_test_corrupt, y_test)
+        score_lin = linear.score(X_test_corrupt, y_test)
+        
+        # B. Evaluate Graph (Using your existing function)
+        # We assume evaluate_graph returns a dict like {'clean': [acc...]} or scalar
+        # We wrap it in try/except to handle return type variations
+        graph_metrics = evaluate_graph_fn(graph, X_test_corrupt, y_test)
+        
+        if isinstance(graph_metrics, dict):
+            # Take mean of 'clean' accuracy if it's a list (continual setting)
+            # or just the value if it's scalar
+            val = graph_metrics.get('clean', 0.0)
+            score_npgm = np.mean(val) if isinstance(val, (list, np.ndarray)) else val
+        else:
+            score_npgm = graph_metrics # Fallback if it returns scalar
+
+        # Store
+        acc_ncm.append(score_ncm)
+        acc_lin.append(score_lin)
+        acc_npgm.append(score_npgm)
+        
+        print(f"   [Occlusion {int(p*100)}%] NPGM: {score_npgm:.2%} | NCM: {score_ncm:.2%} | Linear: {score_lin:.2%}")
+
+    # 3. Plotting the Curve
+    plt.figure(figsize=(8, 6))
+    plt.plot(levels, [x * 100 for x in acc_npgm], 'o-', linewidth=3, label='NPGM (Ours)')
+    plt.plot(levels, [x * 100 for x in acc_ncm], 's--', linewidth=2, label='NCM (Baseline)')
+    plt.plot(levels, [x * 100 for x in acc_lin], 'x:', linewidth=2, label='Linear (Parametric)')
+    
+    plt.title("Robustness to Occlusion (The 'Hard Test')", fontsize=14)
+    plt.xlabel("Percentage of Features Masked", fontsize=12)
+    plt.ylabel("Accuracy (%)", fontsize=12)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend(fontsize=11)
+    
+    # Save
+    path = 'outputs/robustness_curve.png'
+    plt.savefig(path)
+    print(f"✅ Robustness curve saved to {path}")
+    
+    return acc_npgm, acc_ncm, acc_lin
