@@ -81,7 +81,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
 
-def compare_interpretability_hard(features, labels, dataset, num_samples=2000, n_chunks=8):
+def compare_interpretability(features, labels, dataset, num_samples=2000, n_chunks=8):
     """
     Performs the 'Hard Test' (Occlusion):
     1. Takes a query image.
