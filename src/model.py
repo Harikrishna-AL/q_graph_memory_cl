@@ -27,73 +27,86 @@ def extract_features(dino, dataloader):
     return features, labels
 
 class ContinualGraph(nn.Module):
-    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384):
+    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384, rotation_matrix=None):
         super().__init__()
         self.n_chunks = len(codebooks)
         self.device = Config.DEVICE
         
-        # Leaf Nodes (Visual Words)
+        # 1. Leaf Nodes (Visual Words) -> Move to Device
         self.leaves = nn.ParameterList([
             nn.Parameter(torch.tensor(cb, dtype=torch.float32).to(self.device), requires_grad=False) 
             for cb in codebooks
         ])
         
-        # Hub Nodes (Wiring)
-        # Use int64 (long) for indices
+        # 2. Hub Nodes (Wiring) -> Move to Device
         self.wiring = torch.tensor(hub_indices, dtype=torch.long).to(self.device)
-        self.labels = graph_labels
+        self.labels = graph_labels # This is usually a list/numpy array, so it stays on CPU
 
-        R = torch.nn.init.orthogonal_(torch.empty(input_dim, input_dim))
-        self.register_buffer('rotation_matrix', R)
+        # 3. Rotation Matrix -> Move to Device
+        # IMPORTANT: If you pre-computed R during training, pass it in here!
+        if rotation_matrix is not None:
+            R = rotation_matrix
+        else:
+            # Fallback: Create a new random one (Only safe if training starts AFTER this)
+            R = torch.nn.init.orthogonal_(torch.empty(input_dim, input_dim))
+            
+        self.register_buffer('rotation_matrix', R.to(self.device))
 
-    def predict(self, input_features, mask, mode='soft'):
+    def predict(self, input_features, mask, mode='soft', top_k=3):
         """
         input_features: (Batch, 384)
         mask: List of bools, length 8 (True = Visible, False = Occluded)
         mode: 'soft' (Dot Product) or 'hard' (Discrete Voting)
         """
+        # Ensure input is a Tensor on the correct device
+        if not isinstance(input_features, torch.Tensor):
+            input_features = torch.tensor(input_features, dtype=torch.float32)
+        input_features = input_features.to(self.device)
+
         batch_sz = input_features.shape[0]
         n_hubs = self.wiring.shape[0]
         
-        # We accumulate "Energy" (Votes) for each Hub
+        # Energy accumulator on Device
         energy = torch.zeros((batch_sz, n_hubs), device=self.device)
 
+        # 1. Apply Rotation (Both tensors are now on self.device)
         rotated_features = torch.matmul(input_features, self.rotation_matrix)
         
         # 2. Slice the *rotated* features into chunks
         chunks = rotated_features.chunk(self.n_chunks, dim=1)
-        # Split input into M chunks
-        # chunks = input_features.chunk(self.n_chunks, dim=1)
         
         for c in range(self.n_chunks):
-            # 1. ROBUSTNESS CHECK: If mask is False, we completely IGNORE this chunk.
-            # (NCM cannot do this; it sees 'zeros' and calculates distance on them)
+            # ROBUSTNESS CHECK: Skip masked chunks
             if not mask[c]:
                 continue
                 
-            leaf_bank = self.leaves[c] # Shape: (K, 48)
-            input_chunk = chunks[c]    # Shape: (Batch, 48)
+            leaf_bank = self.leaves[c] # (K, Chunk_Dim)
+            input_chunk = chunks[c]    # (Batch, Chunk_Dim)
 
             if mode == 'hard':
-                # --- HARD VOTING (The "Graph" Way) ---
-                # 1. Quantize: Find the nearest Visual Word index for the input
-                #    (Batch, 48) @ (48, K) -> (Batch, K)
+                # --- HARD VOTING (Top-K) ---
+                # 1. Quantize: Find Top-K nearest Visual Word indices
+                # (Batch, 48) @ (48, K) -> (Batch, K)
                 sims = torch.matmul(input_chunk, leaf_bank.t()) 
-                input_codes = torch.argmax(sims, dim=1) # (Batch,) containing integers [0...255]
                 
-                # 2. Vote: Does this Input Code match the Hub's Code?
-                #    Hub Wiring for this chunk: (Num_Hubs,)
+                # Get Top-K indices: (Batch, top_k)
+                _, topk_indices = sims.topk(top_k, dim=1)
+                
+                # 2. Vote: Check if Hub's code exists in Top-K
+                # Hub Wiring for this chunk: (Num_Hubs,)
                 hub_codes = self.wiring[:, c] 
                 
-                #    Compare: (Batch, 1) == (1, Num_Hubs) -> (Batch, Num_Hubs) Boolean Mask
-                matches = (input_codes.unsqueeze(1) == hub_codes.unsqueeze(0))
+                # Broadcasting Match:
+                # (Batch, top_k, 1) == (1, 1, Num_Hubs) -> (Batch, top_k, Num_Hubs)
+                matches = (topk_indices.unsqueeze(2) == hub_codes.view(1, 1, -1))
                 
-                # 3. Add Votes (1.0 for match, 0.0 for no match)
-                energy += matches.float()
+                # If ANY of the Top-K words match, it's a hit
+                hits = matches.any(dim=1).float() 
+                
+                energy += hits
 
             else:
-                # --- SOFT VOTING (The "Similarity" Way) ---
-                # This is your old code. Good for Clean Accuracy, less unique.
+                # --- SOFT VOTING ---
                 hub_leaves = leaf_bank[self.wiring[:, c]] # (Hubs, 48)
                 energy += torch.matmul(input_chunk, hub_leaves.t())
         
