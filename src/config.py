@@ -19,7 +19,7 @@ class Config:
     N_TASKS = 20
     CLASSES_PER_TASK = 10
     N_CHUNKS = 8
-    CHUNK_DIM = 384 // 6
+    CHUNK_DIM = 384 // 8
     
     # Hyperparameters
     WORDS_PER_TASK = 512
