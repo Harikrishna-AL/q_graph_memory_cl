@@ -18,7 +18,7 @@ class Config:
     # Continual Learning
     N_TASKS = 20
     CLASSES_PER_TASK = 10
-    N_CHUNKS = 6
+    N_CHUNKS = 8
     CHUNK_DIM = 384 // 6
     
     # Hyperparameters

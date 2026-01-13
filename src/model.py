@@ -43,6 +43,9 @@ class ContinualGraph(nn.Module):
         self.wiring = torch.tensor(hub_indices, dtype=torch.long).to(self.device)
         self.labels = graph_labels
 
+        R = torch.nn.init.orthogonal_(torch.empty(input_dim, input_dim))
+        self.register_buffer('rotation_matrix', R)
+
     def predict(self, input_features, mask, mode='soft'):
         """
         input_features: (Batch, 384)
@@ -54,9 +57,13 @@ class ContinualGraph(nn.Module):
         
         # We accumulate "Energy" (Votes) for each Hub
         energy = torch.zeros((batch_sz, n_hubs), device=self.device)
+
+        rotated_features = torch.matmul(input_features, self.rotation_matrix)
         
+        # 2. Slice the *rotated* features into chunks
+        chunks = rotated_features.chunk(self.n_chunks, dim=1)
         # Split input into M chunks
-        chunks = input_features.chunk(self.n_chunks, dim=1)
+        # chunks = input_features.chunk(self.n_chunks, dim=1)
         
         for c in range(self.n_chunks):
             # 1. ROBUSTNESS CHECK: If mask is False, we completely IGNORE this chunk.
