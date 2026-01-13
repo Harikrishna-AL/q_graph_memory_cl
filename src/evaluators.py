@@ -258,32 +258,30 @@ def apply_feature_occlusion(features, p_occlusion):
 def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_graph_fn):
     """
     Compares NPGM (Graph), NCM, and Linear Probe under increasing occlusion.
-    
-    Args:
-        graph: The trained NPGM graph object.
-        X_train, y_train: Data to train the baselines on the fly.
-        X_test, y_test: Data to corrupt and evaluate on.
-        evaluate_graph_fn: Your existing function `evaluate_graph(graph, feats, lbls)`
-                           that returns a dict with accuracy.
     """
     print("\n🛡️ Starting Occlusion Robustness Stress Test...")
     
     # 1. Train Baselines on Clean Data (On the fly)
+    # Baselines (sklearn) need NumPy (CPU)
     print("   Training Baselines (NCM & Linear)...")
     
+    # Ensure inputs are Numpy for Sklearn
+    X_train_np = X_train if isinstance(X_train, np.ndarray) else X_train.cpu().numpy()
+    y_train_np = y_train if isinstance(y_train, np.ndarray) else y_train.cpu().numpy()
+    X_test_np  = X_test  if isinstance(X_test, np.ndarray) else X_test.cpu().numpy()
+    y_test_np  = y_test  if isinstance(y_test, np.ndarray) else y_test.cpu().numpy()
+
     # NCM Baseline
     ncm = NearestCentroid()
-    ncm.fit(X_train, y_train)
+    ncm.fit(X_train_np, y_train_np)
     
     # Linear Probe (Parametric Baseline)
-    # Using SGDClassifier as a fast approximation of a linear layer
     linear = SGDClassifier(loss='log_loss', max_iter=1000, tol=1e-3, random_state=42)
-    linear.fit(X_train, y_train)
+    linear.fit(X_train_np, y_train_np)
 
-    # 2. Define Occlusion Levels (0% to 50%)
+    # 2. Define Occlusion Levels
     levels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
     
-    # Store results
     acc_npgm = []
     acc_ncm = []
     acc_lin = []
@@ -291,25 +289,30 @@ def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_g
     print(f"   Testing levels: {levels}")
 
     for p in levels:
-        # Create corrupted test set
-        X_test_corrupt = apply_feature_occlusion(X_test, p)
+        # Create corrupted test set (Numpy)
+        X_test_corrupt_np = apply_feature_occlusion(X_test_np, p)
         
-        # A. Evaluate Baselines
-        score_ncm = ncm.score(X_test_corrupt, y_test)
-        score_lin = linear.score(X_test_corrupt, y_test)
+        # A. Evaluate Baselines (Expect Numpy)
+        score_ncm = ncm.score(X_test_corrupt_np, y_test_np)
+        score_lin = linear.score(X_test_corrupt_np, y_test_np)
         
-        # B. Evaluate Graph (Using your existing function)
-        # We assume evaluate_graph returns a dict like {'clean': [acc...]} or scalar
-        # We wrap it in try/except to handle return type variations
-        graph_metrics = evaluate_graph_fn(graph, X_test_corrupt, y_test)
+        # B. Evaluate Graph (Expects Tensor!) -- THIS IS THE FIX --
+        # Convert Numpy back to Tensor and move to correct device
+        # Note: We assume 'graph' has a .device attribute or we default to 'cuda'/'cpu'
+        device = getattr(graph, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
         
+        X_test_corrupt_tensor = torch.tensor(X_test_corrupt_np, dtype=torch.float32).to(device)
+        y_test_tensor = torch.tensor(y_test_np, dtype=torch.long).to(device)
+        
+        # Pass TENSORS to your graph evaluator
+        graph_metrics = evaluate_graph_fn(graph, X_test_corrupt_tensor, y_test_tensor)
+        
+        # Handle dict vs scalar return
         if isinstance(graph_metrics, dict):
-            # Take mean of 'clean' accuracy if it's a list (continual setting)
-            # or just the value if it's scalar
             val = graph_metrics.get('clean', 0.0)
             score_npgm = np.mean(val) if isinstance(val, (list, np.ndarray)) else val
         else:
-            score_npgm = graph_metrics # Fallback if it returns scalar
+            score_npgm = graph_metrics
 
         # Store
         acc_ncm.append(score_ncm)
@@ -318,7 +321,7 @@ def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_g
         
         print(f"   [Occlusion {int(p*100)}%] NPGM: {score_npgm:.2%} | NCM: {score_ncm:.2%} | Linear: {score_lin:.2%}")
 
-    # 3. Plotting the Curve
+    # 3. Plotting
     plt.figure(figsize=(8, 6))
     plt.plot(levels, [x * 100 for x in acc_npgm], 'o-', linewidth=3, label='NPGM (Ours)')
     plt.plot(levels, [x * 100 for x in acc_ncm], 's--', linewidth=2, label='NCM (Baseline)')
@@ -330,7 +333,6 @@ def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_g
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend(fontsize=11)
     
-    # Save
     path = 'outputs/robustness_curve.png'
     plt.savefig(path)
     print(f"✅ Robustness curve saved to {path}")
