@@ -75,115 +75,167 @@ def _plot_results(clean_accs, occ_accs):
     plt.savefig(save_path)
     print(f"📈 Plot saved to {save_path}")
 
-def compare_interpretability(features, labels, dataset, num_samples=2000, n_chunks=8):
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from scipy.spatial.distance import cdist
+
+def compare_interpretability_hard(features, labels, dataset, num_samples=2000, n_chunks=8):
     """
-    Compares NPGM (Visual Words) vs NCM (Centroids) for concept retrieval.
-    Uses pre-computed features to avoid re-running the model.
+    Performs the 'Hard Test' (Occlusion):
+    1. Takes a query image.
+    2. Zeroes out 50% of its features (Occlusion).
+    3. Asks NPGM to retrieve based on the *surviving* chunks.
+    4. Asks NCM to retrieve based on the *corrupted* vector distance.
     """
-    print(f"🧪 Starting Interpretability Showdown (N={num_samples})...")
+    print(f"🧪 Starting Interpretability HARD MODE (Occlusion Test)...")
     
-    # 1. Prepare Data Subset
-    # We take the first N samples from the extracted features
-    # Ensure num_samples doesn't exceed available features
+    # 1. Prepare Data
     num_samples = min(num_samples, len(features))
-    
     X = features[:num_samples]      # (N, D)
     y = labels[:num_samples]        # (N,)
     N, D = X.shape
     chunk_dim = D // n_chunks
     
-    # 2. Train NPGM (Quantization) on the fly
-    # We simulate your Codebooks using K-Means on the first chunk
-    print("   Training NPGM Codebooks (Simulation)...")
+    # 2. Train NPGM Codebooks (Simulation)
+    # We train independent codebooks for ALL chunks to simulate full graph voting
+    print("   Training NPGM Codebooks for all chunks...")
+    codebooks = [] # List of KMeans models
+    all_codes = np.zeros((N, n_chunks), dtype=int)
     
-    # Focus on Chunk 0 (arbitrary attribute)
-    chunk_0_data = X[:, :chunk_dim]
-    
-    # Create Codebook for Chunk 0
-    kmeans = KMeans(n_clusters=64, n_init=10, random_state=42)
-    kmeans.fit(chunk_0_data)
-    codes = kmeans.labels_ # The "Visual Word" assigned to each image
-    
-    # 3. Train NCM (Class Means)
+    for m in range(n_chunks):
+        start = m * chunk_dim
+        end = (m + 1) * chunk_dim
+        chunk_data = X[:, start:end]
+        
+        kmeans = KMeans(n_clusters=64, n_init=10, random_state=42)
+        kmeans.fit(chunk_data)
+        codebooks.append(kmeans)
+        all_codes[:, m] = kmeans.labels_
+
+    # 3. Train NCM Centroids
     print("   Computing NCM Centroids...")
     unique_classes = np.unique(y)
     class_means = {}
     for c in unique_classes:
         class_means[c] = np.mean(X[y == c], axis=0)
 
-    # 4. Select a Query Image
-    # Pick a random interesting image
-    np.random.seed(42) 
-    # Try to pick a class with enough samples
+    # 4. Select Query & Apply Occlusion
+    np.random.seed(42)
+    # Pick a distinct class query
     for _ in range(100):
         query_idx = np.random.randint(0, num_samples)
         query_cls = y[query_idx]
-        if np.sum(y == query_cls) > 5: # Ensure class has samples
-            break
+        if np.sum(y == query_cls) > 5: break
             
-    query_vec = X[query_idx]
+    query_vec_clean = X[query_idx].copy()
     
-    print(f"   Query Image: Index {query_idx} (Class {query_cls})")
+    # --- APPLY OCCLUSION ---
+    # We zero out the second half of the chunks (Chunks 4-7)
+    # This simulates bottom-half occlusion
+    occluded_indices = range(n_chunks // 2, n_chunks) 
+    valid_indices = range(0, n_chunks // 2)
+    
+    query_vec_dirty = query_vec_clean.copy()
+    # In feature space, we zero out the corresponding dimensions
+    for m in occluded_indices:
+        start = m * chunk_dim
+        end = (m + 1) * chunk_dim
+        query_vec_dirty[start:end] = 0.0 # Destroy features
+
+    print(f"   Query: Index {query_idx} (Class {query_cls}) - 50% Occluded")
 
     # ==========================================
-    # METHOD A: NPGM Retrieval (Exact Code Match)
+    # METHOD A: NPGM Retrieval (Voting on Valid Chunks)
     # ==========================================
-    query_code = codes[query_idx]
-    npgm_matches = [i for i, c in enumerate(codes) if c == query_code and i != query_idx]
+    # NPGM Logic: If a chunk is occluded/zero, it casts NO votes.
+    # We only match based on 'valid_indices' (Chunks 0-3).
     
+    # 1. Get codes for the VALID chunks of the query
+    query_codes_valid = []
+    for m in valid_indices:
+        start = m * chunk_dim
+        end = (m + 1) * chunk_dim
+        # Predict code for the clean part (since in NPGM, occluded parts don't generate valid codes)
+        # Note: In real NPGM, zero-vector might map to a random code, but we filter it out.
+        # Here we simulate filtering by manually picking the valid codes.
+        sub_vec = query_vec_clean[start:end].reshape(1, -1)
+        code = codebooks[m].predict(sub_vec)[0]
+        query_codes_valid.append(code)
+        
+    # 2. Vote! Count how many valid chunks match for each image in database
+    # (Simple voting simulation)
+    votes = np.zeros(N)
+    for i in range(N):
+        if i == query_idx: continue
+        score = 0
+        # Check matches only on valid chunks
+        for m_idx, m_real in enumerate(valid_indices):
+            if all_codes[i, m_real] == query_codes_valid[m_idx]:
+                score += 1
+        votes[i] = score
+        
+    # Sort by votes (Descending)
+    npgm_matches = np.argsort(votes)[::-1]
+    # Filter to exclude self
+    npgm_matches = [idx for idx in npgm_matches if idx != query_idx]
+
     # ==========================================
     # METHOD B: NCM Retrieval (Distance to Average)
     # ==========================================
+    # NCM Logic: Distance calculation includes the zeros!
     centroid = class_means[query_cls]
-    centroid_chunk = centroid[:chunk_dim]
     
-    # Find images whose Chunk 0 is closest to the *Centroid's* Chunk 0
-    dists = cdist(chunk_0_data, centroid_chunk.reshape(1, -1), metric='euclidean').flatten()
+    # Calculate distance between DIRTY query and CLEAN Centroid
+    # This is exactly what happens in deployment
+    dists = cdist(X, query_vec_dirty.reshape(1, -1), metric='euclidean').flatten()
+    
+    # Sort by distance (Ascending)
     ncm_matches = np.argsort(dists)
-    ncm_matches = [i for i in ncm_matches if i != query_idx] # Remove self
+    ncm_matches = [idx for idx in ncm_matches if idx != query_idx]
 
-    # 5. Visualization Helper
+    # 5. Visualization
     def get_img(idx):
-        # Retrieve original image from dataset
-        # Note: dataset[i] returns (tensor, label)
         img_tensor, _ = dataset[idx]
         img = img_tensor.permute(1, 2, 0).numpy()
-        # Denormalize (ImageNet stats)
         img = img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
         return np.clip(img, 0, 1)
 
-    # 6. Plotting
     fig, axes = plt.subplots(3, 6, figsize=(16, 9))
     
-    # Row 1: The Query
-    axes[0,0].imshow(get_img(query_idx))
-    axes[0,0].set_title(f"QUERY\nClass {query_cls}")
+    # Row 1: The Query (Show it 'Occluded' visually)
+    q_img = get_img(query_idx)
+    h, w, c = q_img.shape
+    # Draw a black box on bottom half to represent the feature loss
+    q_img[h//2:, :, :] = 0 
+    
+    axes[0,0].imshow(q_img)
+    axes[0,0].set_title(f"OCCLUDED QUERY\nClass {query_cls}")
     axes[0,0].axis('off')
     for ax in axes[0, 1:]: ax.axis('off')
 
-    # Row 2: NPGM Results
-    axes[1,0].text(0.5, 0.5, "NPGM\n(Shared Code)", ha='center', fontsize=12, fontweight='bold')
+    # Row 2: NPGM Results (Voting)
+    axes[1,0].text(0.5, 0.5, "NPGM\n(Partial Voting)", ha='center', fontsize=12, fontweight='bold')
     axes[1,0].axis('off')
     for k in range(5):
-        if k < len(npgm_matches):
-            idx = npgm_matches[k]
-            axes[1, k+1].imshow(get_img(idx))
-            axes[1, k+1].set_title(f"Class {y[idx]}")
-            axes[1, k+1].axis('off')
+        idx = npgm_matches[k]
+        axes[1, k+1].imshow(get_img(idx))
+        title_color = 'green' if y[idx] == query_cls else 'red'
+        axes[1, k+1].set_title(f"Class {y[idx]}", color=title_color, fontweight='bold')
+        axes[1, k+1].axis('off')
 
-    # Row 3: NCM Results
-    axes[2,0].text(0.5, 0.5, "NCM\n(Dist to Mean)", ha='center', fontsize=12, fontweight='bold')
+    # Row 3: NCM Results (Corrupted Distance)
+    axes[2,0].text(0.5, 0.5, "NCM\n(Global Distance)", ha='center', fontsize=12, fontweight='bold')
     axes[2,0].axis('off')
     for k in range(5):
-        if k < len(ncm_matches):
-            idx = ncm_matches[k]
-            axes[2, k+1].imshow(get_img(idx))
-            axes[2, k+1].set_title(f"Class {y[idx]}")
-            axes[2, k+1].axis('off')
+        idx = ncm_matches[k]
+        axes[2, k+1].imshow(get_img(idx))
+        title_color = 'green' if y[idx] == query_cls else 'red'
+        axes[2, k+1].set_title(f"Class {y[idx]}", color=title_color, fontweight='bold')
+        axes[2, k+1].axis('off')
 
-    plt.suptitle("Interpretability: Discrete Codes (NPGM) vs Continuous Means (NCM)", fontsize=16)
+    plt.suptitle("The Hard Test: Occlusion Robustness\n(Voting vs Distance)", fontsize=16)
     plt.tight_layout()
-    plt.savefig('outputs/interpretability_comparison.png')
-    print("✅ Saved comparison plot to outputs/interpretability_comparison.png")
-# --- Usage ---
-# compare_interpretability(model, train_loader.dataset)
+    plt.savefig('outputs/interpretability_hard_test.png')
+    print("✅ Saved HARD test plot to outputs/interpretability_hard_test.png")
