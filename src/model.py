@@ -27,7 +27,7 @@ def extract_features(dino, dataloader):
     return features, labels
 
 class ContinualGraph(nn.Module):
-    def __init__(self, codebooks, hub_indices, graph_labels):
+    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384):
         super().__init__()
         self.n_chunks = len(codebooks)
         self.device = Config.DEVICE
