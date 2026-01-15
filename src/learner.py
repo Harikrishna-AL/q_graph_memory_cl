@@ -156,7 +156,7 @@ def train_task_free_graph(features, labels, buffer_size=1000):
 
     # ... Assembly Logic (same as before) ...
     full_indices = np.vstack(graph_indices)
-    full_labels = torch.tensor(np.concatenate(graph_labels_list)).to(Config.DEVICE)
+    full_labels = torch.tensor(np.concatenate(graph_labels_list))
 
     hubs_indices, hub_labels = build_hubs(full_indices, full_labels)
     adjacency = build_adjacency(hubs_indices)
