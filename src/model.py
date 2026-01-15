@@ -27,7 +27,7 @@ def extract_features(dino, dataloader):
     return features, labels
 
 class ContinualGraph(nn.Module):
-    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384):
+    def __init__(self, codebooks, hub_indices, graph_labels, adjacency, input_dim=384):
         super().__init__()
         self.n_chunks = len(codebooks)
         self.device = Config.DEVICE
@@ -41,58 +41,61 @@ class ContinualGraph(nn.Module):
         # 2. Hub Nodes (Wiring) -> Move to Device
         self.wiring = torch.tensor(hub_indices, dtype=torch.long).to(self.device)
         self.labels = graph_labels # This is usually a list/numpy array, so it stays on CPU
+
+        self.adjacency = torch.tensor(adjacency, dtype=torch.float32).to(self.device)
+
+    def diffuse(self, energy):
+        A = self.adjacency
+        alpha = Config.DIFFUSION_ALPHA
+        propagated = torch.matmul(energy, A)
+        return alpha * energy + (1 - alpha) * propagated
+
+    def readout(self, energy):
+        """
+        Aggregate hub scores → label scores
+        """
+        unique_labels = torch.unique(self.labels)
+        scores = []
+
+        for lbl in unique_labels:
+            mask = (self.labels == lbl)
+            scores.append(energy[:, mask].sum(dim=1))
+
+        scores = torch.stack(scores, dim=1)
+        return unique_labels[torch.argmax(scores, dim=1)]
             
-    def predict(self, input_features, mask, mode='soft', top_k=3):
-        """
-        input_features: (Batch, 384)
-        mask: List of bools, length 8 (True = Visible, False = Occluded)
-        mode: 'soft' (Dot Product) or 'hard' (Discrete Voting)
-        """
-        # Ensure input is a Tensor on the correct device
+    def predict(self, input_features, mask, mode="hard", top_k=3):
         if not isinstance(input_features, torch.Tensor):
             input_features = torch.tensor(input_features, dtype=torch.float32)
-        input_features = input_features.to(self.device)
 
-        batch_sz = input_features.shape[0]
-        n_hubs = self.wiring.shape[0]
-        
-        # Energy accumulator on Device
-        energy = torch.zeros((batch_sz, n_hubs), device=self.device) 
-        chunks = input_features.chunk(self.n_chunks, dim=1)
-        
+        input_features = input_features.to(self.device)
+        B = input_features.shape[0]
+        H = self.wiring.shape[0]
+
+        energy = torch.zeros((B, H), device=self.device)
+
+        rotated = input_features @ self.rotation_matrix
+        chunks = rotated.chunk(self.n_chunks, dim=1)
+
         for c in range(self.n_chunks):
-            # ROBUSTNESS CHECK: Skip masked chunks
             if not mask[c]:
                 continue
-                
-            leaf_bank = self.leaves[c] # (K, Chunk_Dim)
-            input_chunk = chunks[c]    # (Batch, Chunk_Dim)
 
-            if mode == 'hard':
-                # --- HARD VOTING (Top-K) ---
-                # 1. Quantize: Find Top-K nearest Visual Word indices
-                # (Batch, 48) @ (48, K) -> (Batch, K)
-                sims = torch.matmul(input_chunk, leaf_bank.t()) 
-                
-                # Get Top-K indices: (Batch, top_k)
-                _, topk_indices = sims.topk(top_k, dim=1)
-                
-                # 2. Vote: Check if Hub's code exists in Top-K
-                # Hub Wiring for this chunk: (Num_Hubs,)
-                hub_codes = self.wiring[:, c] 
-                
-                # Broadcasting Match:
-                # (Batch, top_k, 1) == (1, 1, Num_Hubs) -> (Batch, top_k, Num_Hubs)
-                matches = (topk_indices.unsqueeze(2) == hub_codes.view(1, 1, -1))
-                
-                # If ANY of the Top-K words match, it's a hit
-                hits = matches.any(dim=1).float() 
-                
-                energy += hits
+            leaf_bank = self.leaves[c]
+            chunk = chunks[c]
 
-            else:
-                # --- SOFT VOTING ---
-                hub_leaves = leaf_bank[self.wiring[:, c]] # (Hubs, 48)
-                energy += torch.matmul(input_chunk, hub_leaves.t())
-        
-        return torch.argmax(energy, dim=1)
+            sims = torch.matmul(chunk, leaf_bank.t())
+            _, topk = sims.topk(top_k, dim=1)
+
+            hub_codes = self.wiring[:, c]
+
+            matches = (topk.unsqueeze(2) == hub_codes.view(1, 1, -1))
+            hits = matches.any(dim=1).float()
+
+            energy += hits
+
+        # 🔁 Diffusion
+        energy = self.diffuse(energy)
+
+        # 🏷 Label-level decision
+        return self.readout(energy)

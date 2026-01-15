@@ -5,6 +5,7 @@ from sklearn.cluster import MiniBatchKMeans
 from .config import Config
 from .model import ContinualGraph
 from sklearn.linear_model import SGDClassifier
+from .helper import build_hubs, build_adjacency
 
 def train_continual_graph(features, labels):
     print(f"\n🚀 Starting {Config.N_TASKS}-Task Benchmark (Split: {int(Config.TRAIN_TEST_SPLIT*100)}/{int((1-Config.TRAIN_TEST_SPLIT)*100)})")
@@ -81,8 +82,11 @@ def train_continual_graph(features, labels):
     
     # Integrity Check
     assert full_indices.shape[0] == full_labels.shape[0], "Graph Wiring/Labels Mismatch!"
+
+    hub_indices, hub_labels = build_hubs(full_indices, full_labels)
+    adjacency = build_adjacency(hub_indices)
     
-    graph = ContinualGraph(codebooks, full_indices, full_labels)
+    graph = ContinualGraph(codebooks, hub_indices, hub_labels, adjacency)
     
     # Prepare Test Set
     test_tensor = torch.tensor(np.concatenate(test_data["features"]), dtype=torch.float32).to(Config.DEVICE)
@@ -153,8 +157,11 @@ def train_task_free_graph(features, labels, buffer_size=1000):
     # ... Assembly Logic (same as before) ...
     full_indices = np.vstack(graph_indices)
     full_labels = torch.tensor(np.concatenate(graph_labels_list)).to(Config.DEVICE)
+
+    hubs_indices, hub_labels = build_hubs(full_indices, full_labels)
+    adjacency = build_adjacency(hubs_indices)
     
-    graph = ContinualGraph(codebooks, full_indices, full_labels)
+    graph = ContinualGraph(codebooks, hubs_indices, hub_labels, adjacency)
     print(f"✅ Stream Training Complete.")
     # Prepare ALL data as test set (since no tasks)
     test_tensor = torch.tensor(features, dtype=torch.float32).to(Config.DEVICE)

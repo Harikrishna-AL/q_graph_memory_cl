@@ -26,3 +26,8 @@ class Config:
     BATCH_SIZE = 128
     TRAIN_TEST_SPLIT = 0.8  # 80% Memory, 20% Test
     SEED = 42
+
+    TOP_K = 3
+    DIFFUSION_ALPHA = 0.7
+    EDGE_MATCH_THRESHOLD = 3   # how many chunk matches to form edge
+    MAX_NEIGHBORS = 10 
