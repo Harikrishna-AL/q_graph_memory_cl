@@ -4,6 +4,7 @@ import torch
 from sklearn.cluster import MiniBatchKMeans
 from .config import Config
 from .model import ContinualGraph
+from sklearn.linear_model import SGDClassifier
 
 def train_continual_graph(features, labels):
     print(f"\n🚀 Starting {Config.N_TASKS}-Task Benchmark (Split: {int(Config.TRAIN_TEST_SPLIT*100)}/{int((1-Config.TRAIN_TEST_SPLIT)*100)})")
@@ -88,3 +89,106 @@ def train_continual_graph(features, labels):
     test_labels = torch.tensor(np.concatenate(test_data["labels"])).to(Config.DEVICE)
     
     return graph, test_tensor, test_labels
+
+def train_task_free_graph(features, labels, buffer_size=1000):
+    print(f"\n🌊 Starting Task-Free Stream Learning...")
+    # Global Storage
+    codebooks = [np.zeros((0, Config.CHUNK_DIM)) for _ in range(Config.N_CHUNKS)]
+    graph_indices = []
+    graph_labels_list = []
+    
+    # 1. Shuffle ALL data to simulate a random chaotic stream
+    # (In a real robot, this happens naturally as time passes)
+    perm = np.random.permutation(len(features))
+    stream_features = features[perm]
+    stream_labels = labels[perm]
+    
+    total_images = len(stream_features)
+    
+    # 2. Process in "Blocks" (Simulating waking/sleeping cycles)
+    block_id = 0
+    for start_idx in range(0, total_images, buffer_size):
+        end_idx = min(start_idx + buffer_size, total_images)
+        
+        # Get the "Block" of data
+        block_data = stream_features[start_idx:end_idx]
+        block_lbls = stream_labels[start_idx:end_idx]
+        
+        if len(block_data) < 100: break # Skip tiny final batches
+        
+        print(f"   [Block {block_id}] Processing stream items {start_idx}-{end_idx}...", end="")
+        
+        # 3. Learn Local Vocabulary (Just for this block)
+        # We append these new words to the global codebook
+        block_quantized = np.zeros((len(block_data), Config.N_CHUNKS), dtype=np.int32)
+        
+        for c in range(Config.N_CHUNKS):
+            sub_vecs = block_data[:, c*Config.CHUNK_DIM : (c+1)*Config.CHUNK_DIM]
+            
+            # Run K-Means only on this new experience
+            # We use a smaller K (e.g., 64) because the batch is smaller (1000 imgs)
+            kmeans = MiniBatchKMeans(n_clusters=64, n_init=3, batch_size=256)
+            kmeans.fit(sub_vecs)
+            
+            # --- CRITICAL: APPEND-ONLY LOGIC ---
+            # 1. Get the offset (Current size of global codebook)
+            global_offset = codebooks[c].shape[0]
+            
+            # 2. Add new words to global codebook
+            codebooks[c] = np.vstack([codebooks[c], kmeans.cluster_centers_])
+            
+            # 3. Map images to these NEW words (plus the offset)
+            # Note: In a smarter version, we would check if old words fit better, 
+            # but for pure speed, we assume this block introduces new concepts.
+            preds = kmeans.predict(sub_vecs).astype(np.int32)
+            block_quantized[:, c] = preds + global_offset
+            
+        # Store memories
+        graph_indices.append(block_quantized)
+        graph_labels_list.append(block_lbls)
+        
+        print(" Done.")
+        block_id += 1
+
+    # ... Assembly Logic (same as before) ...
+    full_indices = np.vstack(graph_indices)
+    full_labels = torch.tensor(np.concatenate(graph_labels_list)).to(Config.DEVICE)
+    
+    graph = ContinualGraph(codebooks, full_indices, full_labels)
+    print(f"✅ Stream Training Complete.")
+    # Prepare ALL data as test set (since no tasks)
+    test_tensor = torch.tensor(features, dtype=torch.float32).to(Config.DEVICE)
+    test_labels = torch.tensor(labels).to(Config.DEVICE)
+    return graph, test_tensor, test_labels
+
+def run_sequential_linear_probe(features, labels, n_tasks=20):
+    print("\n📉 --- Running Sequential Linear Probe (The 'Forgetting' Test) ---")
+    
+    # We use SGDClassifier because it supports incremental learning (partial_fit)
+    clf = SGDClassifier(loss='log_loss', random_state=42)
+    classes = np.unique(labels)
+    
+    accuracies = []
+    
+    # Simulate 20 Tasks
+    chunk_size = len(features) // n_tasks
+    
+    for i in range(n_tasks):
+        # 1. Get Task Data
+        start = i * chunk_size
+        end = (i + 1) * chunk_size
+        X_task = features[start:end]
+        y_task = labels[start:end]
+        
+        # 2. Train ONLY on this task (Simulating streaming)
+        clf.partial_fit(X_task, y_task, classes=classes)
+        
+        # 3. Test on ALL Data (Global Accuracy)
+        # In a real scenario, we check if it remembers Task 1
+        current_acc = clf.score(features, labels)
+        accuracies.append(current_acc)
+        print(f"   Task {i+1}/{n_tasks}: Global Accuracy = {current_acc*100:.2f}%")
+
+    print(f"   ❌ Final Sequential Linear Probe Accuracy: {accuracies[-1]*100:.2f}%")
+    return accuracies[-1]
+
