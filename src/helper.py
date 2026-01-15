@@ -4,20 +4,32 @@ from .config import Config
 
 def build_hubs(quantized_codes, labels):
     """
-    quantized_codes: (N, n_chunks)
-    labels: (N,)
+    quantized_codes: (N, n_chunks)  [numpy array]
+    labels: (N,)                    [torch tensor, possibly on GPU]
     """
     hubs = {}
     hub_labels = []
 
-    for code, lbl in zip(quantized_codes, labels):
+    # Ensure labels are on CPU for iteration (cheap, 1D)
+    labels_cpu = labels.detach().cpu()
+
+    for code, lbl in zip(quantized_codes, labels_cpu):
         key = tuple(code.tolist())
         if key not in hubs:
             hubs[key] = len(hubs)
-            hub_labels.append(lbl)
+            hub_labels.append(lbl.item())  # <-- scalar, not tensor
 
-    hub_indices = torch.tensor(np.array(list(hubs.keys())))
-    hub_labels = torch.tensor(np.array(hub_labels)).to(Config.DEVICE)
+    hub_indices = torch.tensor(
+        np.array(list(hubs.keys())),
+        dtype=torch.long,
+        device=Config.DEVICE
+    )
+
+    hub_labels = torch.tensor(
+        hub_labels,
+        dtype=torch.long,
+        device=Config.DEVICE
+    )
 
     return hub_indices, hub_labels
 
