@@ -27,7 +27,7 @@ def extract_features(dino, dataloader):
     return features, labels
 
 class ContinualGraph(nn.Module):
-    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384, rotation_matrix=None):
+    def __init__(self, codebooks, hub_indices, graph_labels, input_dim=384):
         super().__init__()
         self.n_chunks = len(codebooks)
         self.device = Config.DEVICE
@@ -41,17 +41,7 @@ class ContinualGraph(nn.Module):
         # 2. Hub Nodes (Wiring) -> Move to Device
         self.wiring = torch.tensor(hub_indices, dtype=torch.long).to(self.device)
         self.labels = graph_labels # This is usually a list/numpy array, so it stays on CPU
-
-        # 3. Rotation Matrix -> Move to Device
-        # IMPORTANT: If you pre-computed R during training, pass it in here!
-        if rotation_matrix is not None:
-            R = rotation_matrix
-        else:
-            # Fallback: Create a new random one (Only safe if training starts AFTER this)
-            R = torch.nn.init.orthogonal_(torch.empty(input_dim, input_dim))
             
-        self.register_buffer('rotation_matrix', R.to(self.device))
-
     def predict(self, input_features, mask, mode='soft', top_k=3):
         """
         input_features: (Batch, 384)
@@ -67,13 +57,8 @@ class ContinualGraph(nn.Module):
         n_hubs = self.wiring.shape[0]
         
         # Energy accumulator on Device
-        energy = torch.zeros((batch_sz, n_hubs), device=self.device)
-
-        # 1. Apply Rotation (Both tensors are now on self.device)
-        rotated_features = torch.matmul(input_features, self.rotation_matrix)
-        
-        # 2. Slice the *rotated* features into chunks
-        chunks = rotated_features.chunk(self.n_chunks, dim=1)
+        energy = torch.zeros((batch_sz, n_hubs), device=self.device) 
+        chunks = input_features.chunk(self.n_chunks, dim=1)
         
         for c in range(self.n_chunks):
             # ROBUSTNESS CHECK: Skip masked chunks

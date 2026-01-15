@@ -92,13 +92,6 @@ def train_continual_graph(features, labels):
 
 def train_task_free_graph(features, labels, buffer_size=1000):
     print(f"\n🌊 Starting Task-Free Stream Learning...")
-    
-    dim = features.shape[1]
-    R = torch.nn.init.orthogonal_(torch.empty(dim, dim))
-    
-    # Rotate Training Data
-    features = torch.matmul(torch.tensor(features), R).numpy()
-
     # Global Storage
     codebooks = [np.zeros((0, Config.CHUNK_DIM)) for _ in range(Config.N_CHUNKS)]
     graph_indices = []
