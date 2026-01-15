@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from .config import Config
 
 def build_hubs(quantized_codes, labels):
@@ -15,8 +16,8 @@ def build_hubs(quantized_codes, labels):
             hubs[key] = len(hubs)
             hub_labels.append(lbl)
 
-    hub_indices = np.array(list(hubs.keys()))
-    hub_labels = np.array(hub_labels)
+    hub_indices = torch.tensor(np.array(list(hubs.keys())))
+    hub_labels = torch.tensor(np.array(hub_labels)).to(Config.DEVICE)
 
     return hub_indices, hub_labels
 
@@ -26,7 +27,7 @@ def build_adjacency(hub_indices):
     Hebbian-style co-activation graph
     """
     H, C = hub_indices.shape
-    adj = np.zeros((H, H), dtype=np.float32)
+    adj = torch.zeros((H, H), dtype=torch.float32).to(Config.DEVICE)
 
     for i in range(H):
         matches = (hub_indices == hub_indices[i]).sum(axis=1)
