@@ -5,7 +5,7 @@ from sklearn.cluster import MiniBatchKMeans
 from .config import Config
 from .model import ContinualGraph
 from sklearn.linear_model import SGDClassifier
-from .helper import build_hubs, build_adjacency
+from .helper import build_hubs, build_hub_neighbors
 
 def train_continual_graph(features, labels):
     print(f"\n🚀 Starting {Config.N_TASKS}-Task Benchmark (Split: {int(Config.TRAIN_TEST_SPLIT*100)}/{int((1-Config.TRAIN_TEST_SPLIT)*100)})")
@@ -84,9 +84,9 @@ def train_continual_graph(features, labels):
     assert full_indices.shape[0] == full_labels.shape[0], "Graph Wiring/Labels Mismatch!"
 
     hub_indices, hub_labels = build_hubs(full_indices, full_labels)
-    adjacency = build_adjacency(hub_indices)
+    neighbors = build_hub_neighbors(hub_indices)
     
-    graph = ContinualGraph(codebooks, hub_indices, hub_labels, adjacency)
+    graph = ContinualGraph(codebooks, hub_indices, hub_labels, neighbors)
     
     # Prepare Test Set
     test_tensor = torch.tensor(np.concatenate(test_data["features"]), dtype=torch.float32).to(Config.DEVICE)
@@ -131,7 +131,7 @@ def train_task_free_graph(features, labels, buffer_size=1000):
             
             # Run K-Means only on this new experience
             # We use a smaller K (e.g., 64) because the batch is smaller (1000 imgs)
-            kmeans = MiniBatchKMeans(n_clusters=64, n_init=3, batch_size=256)
+            kmeans = MiniBatchKMeans(n_clusters=Config.WORDS_PER_TASK, n_init=3, batch_size=256)
             kmeans.fit(sub_vecs)
             
             # --- CRITICAL: APPEND-ONLY LOGIC ---
@@ -159,14 +159,109 @@ def train_task_free_graph(features, labels, buffer_size=1000):
     full_labels = torch.tensor(np.concatenate(graph_labels_list)).to(Config.DEVICE)
 
     hubs_indices, hub_labels = build_hubs(full_indices, full_labels)
-    adjacency = build_adjacency(hubs_indices)
+    neighbors = build_hub_neighbors(hubs_indices)
     
-    graph = ContinualGraph(codebooks, hubs_indices, hub_labels, adjacency)
+    graph = ContinualGraph(codebooks, hubs_indices, hub_labels, neighbors)
     print(f"✅ Stream Training Complete.")
     # Prepare ALL data as test set (since no tasks)
-    test_tensor = torch.tensor(features, dtype=torch.float32).to(Config.DEVICE)
-    test_labels = torch.tensor(labels).to(Config.DEVICE)
-    return graph, test_tensor, test_labels
+    # test_tensor = torch.tensor(features, dtype=torch.float32).to(Config.DEVICE)
+    # test_labels = torch.tensor(labels).to(Config.DEVICE)
+    return graph
+
+# Inside learner.py
+
+# def train_task_free_graph(features, labels, buffer_size=1000, split_ratio=0.8):
+#     print(f"\n🌊 Starting Task-Free Stream Learning (Online adaptation)...")
+    
+#     # 1. SPLIT DATA FIRST (Crucial Step to prevent Leakage)
+#     total_samples = len(features)
+#     split_idx = int(total_samples * split_ratio)
+    
+#     # Shuffle data
+#     np.random.seed(Config.SEED)
+#     perm = np.random.permutation(total_samples)
+#     shuffled_features = features[perm]
+#     shuffled_labels = labels[perm]
+    
+#     # DIVIDE: Robot sees 'train', Robot NEVER sees 'test'
+#     train_features = shuffled_features[:split_idx] # The Stream
+#     train_labels   = shuffled_labels[:split_idx]
+    
+#     test_features  = shuffled_features[split_idx:] # The Hidden Test Set
+#     test_labels    = shuffled_labels[split_idx:]
+    
+#     print(f"   📉 Data Split: {len(train_features)} Training (Stream) | {len(test_features)} Unseen Test")
+
+#     # 2. Initialize Online K-Means
+#     global_kmeans = [
+#         MiniBatchKMeans(
+#             n_clusters=Config.WORDS_PER_TASK, 
+#             random_state=Config.SEED, 
+#             batch_size=256,
+#             n_init=3
+#         ) 
+#         for _ in range(Config.N_CHUNKS)
+#     ]
+    
+#     graph_indices = []
+#     graph_labels_list = []
+    
+#     # 3. Process ONLY the Training Stream
+#     total_train = len(train_features)
+#     block_id = 0
+
+#     for start_idx in range(0, total_train, buffer_size):
+#         end_idx = min(start_idx + buffer_size, total_train)
+        
+#         block_data = train_features[start_idx:end_idx]
+#         block_lbls = train_labels[start_idx:end_idx]
+        
+#         if len(block_data) < 50: break 
+        
+#         print(f"   [Block {block_id}] Processing {len(block_data)} items...", end="")
+        
+#         block_quantized = np.zeros((len(block_data), Config.N_CHUNKS), dtype=np.int32)
+        
+#         for c in range(Config.N_CHUNKS):
+#             start_d = c * Config.CHUNK_DIM
+#             end_d   = (c + 1) * Config.CHUNK_DIM
+#             sub_vecs = block_data[:, start_d : end_d]
+            
+#             # Update Knowledge (Learn)
+#             global_kmeans[c].partial_fit(sub_vecs)
+            
+#             # Apply Knowledge (Quantize)
+#             preds = global_kmeans[c].predict(sub_vecs).astype(np.int32)
+#             block_quantized[:, c] = preds
+            
+#         graph_indices.append(block_quantized)
+#         graph_labels_list.append(block_lbls)
+        
+#         print(" Done.")
+#         block_id += 1
+
+#     # 4. Extract Final Codebooks
+#     final_codebooks = [km.cluster_centers_ for km in global_kmeans]
+
+#     # 5. Build Graph
+#     print("   Building Graph Topology...")
+#     if len(graph_indices) > 0:
+#         full_indices = np.vstack(graph_indices)
+#         full_labels = torch.tensor(np.concatenate(graph_labels_list)).to(Config.DEVICE)
+
+#         hubs_indices, hub_labels = build_hubs(full_indices, full_labels)
+#         neighbors = build_hub_neighbors(hubs_indices)
+        
+#         graph = ContinualGraph(final_codebooks, hubs_indices, hub_labels, neighbors)
+#     else:
+#         raise ValueError("Graph failed to train: No data processed.")
+    
+#     # 6. RETURN ONLY THE HIDDEN TEST SET
+#     # This ensures your 'evaluate_graph' function is strictly testing generalization.
+#     test_tensor = torch.tensor(test_features, dtype=torch.float32).to(Config.DEVICE)
+#     test_labels_tensor = torch.tensor(test_labels).to(Config.DEVICE)
+    
+#     return graph, test_tensor, test_labels_tensor
 
 def run_sequential_linear_probe(features, labels, n_tasks=20):
     print("\n📉 --- Running Sequential Linear Probe (The 'Forgetting' Test) ---")

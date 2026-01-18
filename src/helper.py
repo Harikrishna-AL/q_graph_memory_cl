@@ -34,29 +34,27 @@ def build_hubs(quantized_codes, labels):
     return hub_indices, hub_labels
 
 
-def build_adjacency(hub_indices):
+def build_hub_neighbors(hub_indices, k=8):
     """
-    Hebbian-style co-activation graph
+    Build sparse hub neighbors based on Hamming similarity
+    hub_indices: (H, C)
+    Returns: list of neighbor indices per hub
     """
+    hub_indices = hub_indices.cpu().numpy()
     H, C = hub_indices.shape
-    adj = torch.zeros((H, H), dtype=torch.float32).to(Config.DEVICE)
+
+    neighbors = [[] for _ in range(H)]
 
     for i in range(H):
+        # Hamming similarity
         matches = (hub_indices == hub_indices[i]).sum(axis=1)
-        neighbors = np.where(matches >= Config.EDGE_MATCH_THRESHOLD)[0]
 
-        for j in neighbors:
-            if i != j:
-                adj[i, j] += 1
+        # Exclude self
+        matches[i] = -1
 
-    # sparsify
-    for i in range(H):
-        keep = np.argsort(adj[i])[-Config.MAX_NEIGHBORS:]
-        mask = np.ones(H, dtype=bool)
-        mask[keep] = False
-        adj[i][mask] = 0
+        # Top-k neighbors
+        nn = np.argsort(matches)[-k:]
+        neighbors[i] = nn.tolist()
 
-    # normalize
-    adj /= (adj.sum(axis=1, keepdims=True) + 1e-6)
+    return neighbors
 
-    return adj

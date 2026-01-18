@@ -1,2 +1,6 @@
 data/
 outputs/
+*.pth
+*.pt
+cache/
+__pycache__/

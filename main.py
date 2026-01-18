@@ -2,7 +2,7 @@ import argparse
 import torch
 import numpy as np
 from src.data_utils import get_dataloader
-from src.model import load_dino, extract_features
+from src.model import load_dino, extract_features, save_cached_features, load_cached_features
 from src.learner import run_sequential_linear_probe, train_continual_graph, train_task_free_graph
 # Import the new function here 👇
 from src.evaluators import evaluate_graph, compare_interpretability, run_occlusion_experiment
@@ -22,15 +22,16 @@ def main():
     
     # 1. Data & Features
     dataset, loader = get_dataloader(use_train_set=args.use_train)
-    dino = load_dino()
-    features, labels = extract_features(dino, loader)
-    
-    # 2. Train Your Graph
-    graph, test_feats, test_lbls = train_task_free_graph(features, labels)
-    
-    # 3. Eval Your Graph (Standard Clean Eval)
-    graph_results = evaluate_graph(graph, test_feats, test_lbls, mode=args.imode)
-    
+
+    features, labels = load_cached_features(args.use_train)
+
+    if features is None:
+        dino = load_dino()
+        features, labels = extract_features(dino, loader)
+        save_cached_features(features, labels, args.use_train)
+    else:
+        print("⚡ Skipping feature extraction")
+
     # --- Prepare Data Split for Comparisons ---
     print("\n--- Preparing Data for Baselines & Robustness ---")
     train_indices = []
@@ -53,6 +54,13 @@ def main():
     y_train = labels[train_indices]
     X_test = features[test_indices]
     y_test = labels[test_indices]
+        
+    # 2. Train Your Graph
+    graph = train_task_free_graph(X_train, y_train)
+    
+    # 3. Eval Your Graph (Standard Clean Eval)
+    print("--- Using Mode:", args.imode, "---")
+    graph_results = evaluate_graph(graph, torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE), torch.tensor(y_test).to(Config.DEVICE), mode=args.imode)
     
     # 4. Run Baselines (Clean)
     baseline_results = run_baselines(X_train, y_train, X_test, y_test)
