@@ -14,6 +14,7 @@ def main():
     parser.add_argument("--use_train", action="store_true", default=True, help="Use full TRAIN set")
     parser.add_argument("--words", type=int, default=512, help="Words per task per chunk")
     parser.add_argument("--imode", type=str, default='soft', help="Inference mode for evaluation")
+    parser.add_argument("--dataset", type=str, default='tinyimagenet', help="Dataset to use: tinyimagenet or cifar100   ")
     args = parser.parse_args()
     
     Config.WORDS_PER_TASK = args.words
@@ -21,14 +22,14 @@ def main():
     print("=== 🧠 Graph Memory Project ===")
     
     # 1. Data & Features
-    dataset, loader = get_dataloader(use_train_set=args.use_train)
+    dataset, loader = get_dataloader(dataset_name=args.dataset, use_train_set=args.use_train)
 
-    features, labels = load_cached_features(args.use_train)
+    features, labels = load_cached_features(dataset_name=args.dataset, use_train=args.use_train)
 
     if features is None:
         dino = load_dino()
         features, labels = extract_features(dino, loader)
-        save_cached_features(features, labels, args.use_train)
+        save_cached_features(features, labels, args.dataset, args.use_train)
     else:
         print("⚡ Skipping feature extraction")
 
@@ -56,24 +57,29 @@ def main():
     y_test = labels[test_indices]
         
     # 2. Train Your Graph
-    graph = train_task_free_graph(X_train, y_train)
+    model = train_task_free_graph(X_train, y_train)
     
-    # 3. Eval Your Graph (Standard Clean Eval)
+    # 3. Eval
     print("--- Using Mode:", args.imode, "---")
-    graph_results = evaluate_graph(graph, torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE), torch.tensor(y_test).to(Config.DEVICE), mode=args.imode)
+    
+    # Convert Test Data to Tensor
+    test_tensor = torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE)
+    test_labels = torch.tensor(y_test).to(Config.DEVICE)
+    
+    graph_results = evaluate_graph(model, test_tensor, test_labels, mode=args.imode)
     
     # 4. Run Baselines (Clean)
     baseline_results = run_baselines(X_train, y_train, X_test, y_test)
     
     # 5. Run Robustness Experiment (Occlusion) <--- NEW STEP
     # We pass 'evaluate_graph' so the function can re-use your inference logic
-    run_occlusion_experiment(
-        graph, X_train, y_train, X_test, y_test, 
-        evaluate_graph_fn=evaluate_graph
-    )
+    # run_occlusion_experiment(
+    #     graph, X_train, y_train, X_test, y_test, 
+    #     evaluate_graph_fn=evaluate_graph
+    # )
     
     # 6. Interpretability Check
-    compare_interpretability(features, labels, dataset)
+    compare_interpretability(model, features, labels, dataset)
 
     # Final Print
     print("\n🏆 FINAL SCOREBOARD (Clean Accuracy)")

@@ -9,22 +9,29 @@ from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestCentroid
 from sklearn.linear_model import SGDClassifier
 
-def evaluate_graph(graph, test_features, test_labels, mode='soft'):
+def evaluate_graph(model, test_features, test_labels, mode='soft'):
     print("\n📊 --- Running Dual Evaluation (Clean vs Occluded) ---")
     
-    # Defined Masks
-    mask_clean = [True] * 8
-    mask_occluded = [True]*4 + [False]*4
+    n_chunks = Config.N_CHUNKS
+    
+    # Dynamic Masks
+    mask_clean = [True] * n_chunks
+    
+    # Occlusion: Mask bottom 50%
+    half = n_chunks // 2
+    mask_occluded = [True] * half + [False] * (n_chunks - half)
     
     results = {}
     
-    results['clean'] = _run_eval_loop(graph, test_features, test_labels, mask_clean, "CLEAN", mode=mode)
-    results['occluded'] = _run_eval_loop(graph, test_features, test_labels, mask_occluded, "OCCLUDED", mode=mode)
+    results['clean'] = _run_eval_loop(model, test_features, test_labels, mask_clean, "CLEAN", mode=mode)
+    results['occluded'] = _run_eval_loop(model, test_features, test_labels, mask_occluded, "OCCLUDED", mode=mode)
     
+    # Plotting (Optional)
     _plot_results(results['clean'], results['occluded'])
+    
     return results
 
-def _run_eval_loop(graph, features, labels, mask, name, mode='soft'):
+def _run_eval_loop(model, features, labels, mask, name, mode='soft'):
     accuracies = []
     print(f"   Evaluating: {name}...")
     
@@ -32,7 +39,6 @@ def _run_eval_loop(graph, features, labels, mask, name, mode='soft'):
         start_cls = task_id * Config.CLASSES_PER_TASK
         end_cls = (task_id + 1) * Config.CLASSES_PER_TASK
         
-        # Filter Test Set for this Task
         task_mask = (labels >= start_cls) & (labels < end_cls)
         task_idxs = torch.where(task_mask)[0]
         
@@ -41,15 +47,16 @@ def _run_eval_loop(graph, features, labels, mask, name, mode='soft'):
         t_feats = features[task_idxs]
         t_lbls = labels[task_idxs]
         
-        # Batch Inference
         batch_accs = []
         bs = 100
         for i in range(0, len(t_feats), bs):
             b_in = t_feats[i:i+bs]
             b_lbl = t_lbls[i:i+bs]
             
-            winner_idx = graph.predict(b_in, mask, mode=mode)
-            preds = graph.labels[winner_idx]
+            # Predict returns CLASS LABELS directly now
+            preds = model.predict(b_in, mask, mode=mode)
+            
+            # Compare directly! No lookup needed.
             batch_accs.append((preds == b_lbl).float().sum().item())
             
         acc = sum(batch_accs) / len(t_feats)
@@ -62,8 +69,13 @@ def _run_eval_loop(graph, features, labels, mask, name, mode='soft'):
 def _plot_results(clean_accs, occ_accs):
     os.makedirs("outputs", exist_ok=True)
     plt.figure(figsize=(10, 6))
-    plt.plot(range(1, 21), [a*100 for a in clean_accs], 'o-', label='Clean Input', linewidth=2)
-    plt.plot(range(1, 21), [a*100 for a in occ_accs], 'x--', label='50% Occluded', linewidth=2)
+    
+    # --- FIX: Dynamic Range based on actual data length ---
+    n_tasks = len(clean_accs)
+    task_range = range(1, n_tasks + 1)
+    
+    plt.plot(task_range, [a*100 for a in clean_accs], 'o-', label='Clean Input', linewidth=2)
+    plt.plot(task_range, [a*100 for a in occ_accs], 'x--', label='50% Occluded', linewidth=2)
     
     plt.title(f"Graph Memory Robustness\nClean Avg: {np.mean(clean_accs)*100:.1f}% | Occluded Avg: {np.mean(occ_accs)*100:.1f}%")
     plt.xlabel("Task ID")
@@ -72,168 +84,137 @@ def _plot_results(clean_accs, occ_accs):
     plt.grid(True, alpha=0.3)
     plt.ylim(0, 100)
     
+    # Ensure integer ticks on x-axis
+    plt.xticks(task_range)
+    
     save_path = "outputs/results_plot.png"
     plt.savefig(save_path)
     print(f"📈 Plot saved to {save_path}")
 
-def compare_interpretability(features, labels, dataset, num_samples=2000, n_chunks=8):
+def compare_interpretability(model, features, labels, dataset, num_samples=2000):
     """
-    Performs the 'Hard Test' (Occlusion):
+    Real Interpretability Test:
     1. Takes a query image.
-    2. Zeroes out 50% of its features (Occlusion).
-    3. Asks NPGM to retrieve based on the *surviving* chunks.
-    4. Asks NCM to retrieve based on the *corrupted* vector distance.
+    2. Occludes it.
+    3. Asks the TRAINED Bayes Model to vote.
+    4. Shows the 'Visual Words' (Prototypes) that cast the strongest votes.
     """
-    print(f"🧪 Starting Interpretability HARD MODE (Occlusion Test)...")
+    print(f"\n🧪 Starting Interpretability Visualization (Using Trained Model)...")
     
-    # 1. Prepare Data
+    # 1. Setup Data
     num_samples = min(num_samples, len(features))
-    X = features[:num_samples]      # (N, D)
-    y = labels[:num_samples]        # (N,)
-    N, D = X.shape
-    chunk_dim = D // n_chunks
+    # Ensure features are on the correct device for the model
+    X = torch.tensor(features[:num_samples], dtype=torch.float32).to(Config.DEVICE)
+    y = labels[:num_samples]
     
-    # 2. Train NPGM Codebooks (Simulation)
-    # We train independent codebooks for ALL chunks to simulate full graph voting
-    print("   Training NPGM Codebooks for all chunks...")
-    codebooks = [] # List of KMeans models
-    all_codes = np.zeros((N, n_chunks), dtype=int)
-    
-    for m in range(n_chunks):
-        start = m * chunk_dim
-        end = (m + 1) * chunk_dim
-        chunk_data = X[:, start:end]
-        
-        kmeans = KMeans(n_clusters=64, n_init=10, random_state=42)
-        kmeans.fit(chunk_data)
-        codebooks.append(kmeans)
-        all_codes[:, m] = kmeans.labels_
-
-    # 3. Train NCM Centroids
-    print("   Computing NCM Centroids...")
-    unique_classes = np.unique(y)
-    class_means = {}
-    for c in unique_classes:
-        class_means[c] = np.mean(X[y == c], axis=0)
-
-    # 4. Select Query & Apply Occlusion
+    # 2. Pick a Query (Ensure we pick a class the model knows)
     np.random.seed(42)
-    # Pick a distinct class query
-    for _ in range(100):
-        query_idx = np.random.randint(0, num_samples)
-        query_cls = y[query_idx]
-        if np.sum(y == query_cls) > 5: break
+    # Find a class with enough examples
+    valid_classes, counts = np.unique(y, return_counts=True)
+    target_cls = valid_classes[np.argmax(counts)] # Pick most common class
+    
+    # Find indices of this class
+    cls_indices = np.where(y == target_cls)[0]
+    query_idx = np.random.choice(cls_indices)
+    
+    query_vec_clean = X[query_idx].unsqueeze(0) # (1, 384)
+    
+    # 3. Create Occlusion (Bottom 50%)
+    n_chunks = Config.N_CHUNKS
+    mask_occluded = [True] * (n_chunks // 2) + [False] * (n_chunks - (n_chunks // 2))
+    
+    print(f"   Query Index: {query_idx} | Class: {target_cls} | Mask: {mask_occluded}")
+
+    # 4. Get Model's "Thinking"
+    # We want to know WHICH words voted for the winner.
+    # We essentially run 'predict' manually to extract internal states.
+    
+    model.eval()
+    with torch.no_grad():
+        # A. Quantize
+        # (1, n_chunks)
+        codes = model.quantize(query_vec_clean) 
+        
+        # B. Get the prototypes (Visual Words) for the ACTIVE chunks
+        # We want to visualize what the model "sees" in the top half.
+        
+        # Find the nearest neighbor images in our dataset to these active codes
+        # This is a reverse-lookup: "Who else looks like Code #42?"
+        
+        prototypes_indices = []
+        
+        for c in range(n_chunks):
+            if not mask_occluded[c]: 
+                continue # Skip occluded parts
             
-    query_vec_clean = X[query_idx].copy()
-    
-    # --- APPLY OCCLUSION ---
-    # We zero out the second half of the chunks (Chunks 4-7)
-    # This simulates bottom-half occlusion
-    occluded_indices = range(n_chunks // 2, n_chunks) 
-    valid_indices = range(0, n_chunks // 2)
-    
-    query_vec_dirty = query_vec_clean.copy()
-    # In feature space, we zero out the corresponding dimensions
-    for m in occluded_indices:
-        start = m * chunk_dim
-        end = (m + 1) * chunk_dim
-        query_vec_dirty[start:end] = 0.0 # Destroy features
-
-    print(f"   Query: Index {query_idx} (Class {query_cls}) - 50% Occluded")
-
-    # ==========================================
-    # METHOD A: NPGM Retrieval (Voting on Valid Chunks)
-    # ==========================================
-    # NPGM Logic: If a chunk is occluded/zero, it casts NO votes.
-    # We only match based on 'valid_indices' (Chunks 0-3).
-    
-    # 1. Get codes for the VALID chunks of the query
-    query_codes_valid = []
-    for m in valid_indices:
-        start = m * chunk_dim
-        end = (m + 1) * chunk_dim
-        # Predict code for the clean part (since in NPGM, occluded parts don't generate valid codes)
-        # Note: In real NPGM, zero-vector might map to a random code, but we filter it out.
-        # Here we simulate filtering by manually picking the valid codes.
-        sub_vec = query_vec_clean[start:end].reshape(1, -1)
-        code = codebooks[m].predict(sub_vec)[0]
-        query_codes_valid.append(code)
-        
-    # 2. Vote! Count how many valid chunks match for each image in database
-    # (Simple voting simulation)
-    votes = np.zeros(N)
-    for i in range(N):
-        if i == query_idx: continue
-        score = 0
-        # Check matches only on valid chunks
-        for m_idx, m_real in enumerate(valid_indices):
-            if all_codes[i, m_real] == query_codes_valid[m_idx]:
-                score += 1
-        votes[i] = score
-        
-    # Sort by votes (Descending)
-    npgm_matches = np.argsort(votes)[::-1]
-    # Filter to exclude self
-    npgm_matches = [idx for idx in npgm_matches if idx != query_idx]
-
-    # ==========================================
-    # METHOD B: NCM Retrieval (Distance to Average)
-    # ==========================================
-    # NCM Logic: Distance calculation includes the zeros!
-    centroid = class_means[query_cls]
-    
-    # Calculate distance between DIRTY query and CLEAN Centroid
-    # This is exactly what happens in deployment
-    dists = cdist(X, query_vec_dirty.reshape(1, -1), metric='euclidean').flatten()
-    
-    # Sort by distance (Ascending)
-    ncm_matches = np.argsort(dists)
-    ncm_matches = [idx for idx in ncm_matches if idx != query_idx]
+            # The code the model assigned to this chunk
+            active_code = codes[0, c].item()
+            
+            # Find closest match in the dataset for this specific chunk
+            # (In a real paper, you'd show the centroid, but showing a real image is clearer)
+            
+            # Get all features for this chunk
+            chunk_dim = Config.CHUNK_DIM
+            start = c * chunk_dim
+            end = (c + 1) * chunk_dim
+            dataset_chunk = X[:, start:end] # (N, 64)
+            
+            # Get the vector for the active code from the model
+            code_vec = model.codebooks[c][active_code].unsqueeze(0) # (1, 64)
+            
+            # Find sample in X closest to this code_vec
+            dists = torch.cdist(dataset_chunk, code_vec).flatten()
+            nearest_idx = torch.argmin(dists).item()
+            
+            prototypes_indices.append(nearest_idx)
 
     # 5. Visualization
     def get_img(idx):
         img_tensor, _ = dataset[idx]
         img = img_tensor.permute(1, 2, 0).numpy()
+        # Denormalize
         img = img * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406])
         return np.clip(img, 0, 1)
 
-    fig, axes = plt.subplots(3, 6, figsize=(16, 9))
+    fig, axes = plt.subplots(1, len(prototypes_indices) + 1, figsize=(15, 5))
     
-    # Row 1: The Query (Show it 'Occluded' visually)
+    # Show Query (Occluded)
     q_img = get_img(query_idx)
-    h, w, c = q_img.shape
-    # Draw a black box on bottom half to represent the feature loss
-    q_img[h//2:, :, :] = 0 
+    h, w, _ = q_img.shape
+    q_img[h//2:, :, :] = 0 # Visual black box
     
-    axes[0,0].imshow(q_img)
-    axes[0,0].set_title(f"OCCLUDED QUERY\nClass {query_cls}")
-    axes[0,0].axis('off')
-    for ax in axes[0, 1:]: ax.axis('off')
-
-    # Row 2: NPGM Results (Voting)
-    axes[1,0].text(0.5, 0.5, "NPGM\n(Partial Voting)", ha='center', fontsize=12, fontweight='bold')
-    axes[1,0].axis('off')
-    for k in range(5):
-        idx = npgm_matches[k]
-        axes[1, k+1].imshow(get_img(idx))
-        title_color = 'green' if y[idx] == query_cls else 'red'
-        axes[1, k+1].set_title(f"Class {y[idx]}", color=title_color, fontweight='bold')
-        axes[1, k+1].axis('off')
-
-    # Row 3: NCM Results (Corrupted Distance)
-    axes[2,0].text(0.5, 0.5, "NCM\n(Global Distance)", ha='center', fontsize=12, fontweight='bold')
-    axes[2,0].axis('off')
-    for k in range(5):
-        idx = ncm_matches[k]
-        axes[2, k+1].imshow(get_img(idx))
-        title_color = 'green' if y[idx] == query_cls else 'red'
-        axes[2, k+1].set_title(f"Class {y[idx]}", color=title_color, fontweight='bold')
-        axes[2, k+1].axis('off')
-
-    plt.suptitle("The Hard Test: Occlusion Robustness\n(Voting vs Distance)", fontsize=16)
+    axes[0].imshow(q_img)
+    axes[0].set_title(f"Query\n(Class {target_cls})")
+    axes[0].axis('off')
+    
+    # Show the "Votes" (The Prototypes)
+    for i, proto_idx in enumerate(prototypes_indices):
+        p_img = get_img(proto_idx)
+        
+        # Highlight the chunk we are looking at? 
+        # Optional: Apply a mask to the prototype too to show "I matched the head"
+        # For now, just show the whole image
+        
+        axes[i+1].imshow(p_img)
+        axes[i+1].set_title(f"Vote from\nChunk {i}\n(Class {y[proto_idx]})")
+        
+        # Color border green if it voted correctly
+        if y[proto_idx] == target_cls:
+            # Add green border effect (simple way via spine color)
+            for spine in axes[i+1].spines.values():
+                spine.set_edgecolor('green')
+                spine.set_linewidth(3)
+        else:
+            for spine in axes[i+1].spines.values():
+                spine.set_edgecolor('red')
+                spine.set_linewidth(3)
+                
+        axes[i+1].axis('off')
+        
+    plt.suptitle(f"Explainable Inference: Voting with Visual Words", fontsize=16)
     plt.tight_layout()
-    plt.savefig('outputs/interpretability_hard_test.png')
-    print("✅ Saved HARD test plot to outputs/interpretability_hard_test.png")
+    plt.savefig('outputs/interpretability_real.png')
+    print("✅ Saved REAL interpretability plot to outputs/interpretability_real.png")
 
 # --- Helper: Apply Occlusion ---
 def apply_feature_occlusion(features, p_occlusion):

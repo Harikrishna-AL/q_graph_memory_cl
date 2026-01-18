@@ -8,32 +8,54 @@ from src.config import Config
 
 CACHE_DIR = "cache"
 
-def get_cache_paths(use_train):
-    split = "train" if use_train else "val"
-    model = Config.DINO_MODEL.replace("/", "_")
+# 1. Update: Accept 'dataset_name' to prevent overwriting
+def get_cache_paths(dataset_name, use_train):
+    # Ensure folder exists
     os.makedirs(CACHE_DIR, exist_ok=True)
+    
+    split = "train" if use_train else "val"
+    # Clean model name (e.g. "dinov2_vits14")
+    model = Config.DINO_MODEL.replace("/", "_") 
+    
+    # Clean dataset name (e.g. "cifar100")
+    dname = dataset_name.lower().strip()
 
-    feat_path = f"{CACHE_DIR}/{model}_{split}_features.npy"
-    lbl_path  = f"{CACHE_DIR}/{model}_{split}_labels.npy"
+    # New Filename Format: {dataset}_{model}_{split}_features.npy
+    feat_path = f"{CACHE_DIR}/{dname}_{model}_{split}_features.npy"
+    lbl_path  = f"{CACHE_DIR}/{dname}_{model}_{split}_labels.npy"
+    
     return feat_path, lbl_path
 
-
-def load_cached_features(use_train):
-    feat_path, lbl_path = get_cache_paths(use_train)
+# 2. Update: Pass dataset_name through
+def load_cached_features(dataset_name, use_train):
+    feat_path, lbl_path = get_cache_paths(dataset_name, use_train)
 
     if os.path.exists(feat_path) and os.path.exists(lbl_path):
-        print("💾 Loading cached DINO features...")
-        features = np.load(feat_path, mmap_mode="r")  # memory-efficient
-        labels = np.load(lbl_path)
-        return features, labels
+        print(f"💾 Loading cached DINO features for {dataset_name} ({'Train' if use_train else 'Test'})...")
+        try:
+            features = np.load(feat_path, mmap_mode="r")  # memory-efficient
+            labels = np.load(lbl_path)
+            return features, labels
+        except Exception as e:
+            print(f"⚠️  Cache file corrupted or incompatible. Re-extracting. Error: {e}")
+            return None, None
 
+    print(f"⚠️  No cache found at {feat_path}")
     return None, None
 
-def save_cached_features(features, labels, use_train):
-    feat_path, lbl_path = get_cache_paths(use_train)
+# 3. Update: Pass dataset_name through
+def save_cached_features(features, labels, dataset_name, use_train):
+    feat_path, lbl_path = get_cache_paths(dataset_name, use_train)
+    
+    # Ensure inputs are numpy
+    if isinstance(features, torch.Tensor):
+        features = features.cpu().numpy()
+    if isinstance(labels, torch.Tensor):
+        labels = labels.cpu().numpy()
+        
     np.save(feat_path, features)
     np.save(lbl_path, labels)
-    print(f"✅ Cached features saved to {feat_path}")
+    print(f"✅ Cached {len(features)} features to {feat_path}")
 
 def load_dino():
     print(f"🦖 Loading {Config.DINO_MODEL}...")
