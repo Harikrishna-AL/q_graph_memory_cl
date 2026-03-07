@@ -162,6 +162,8 @@ def train_task_free_graph(features, labels, buffer_size=1000):
     
     # UPDATE the Bayes Model with the final full Codebooks so it can predict correctly
     bayes_model.codebooks = [torch.tensor(cb, dtype=torch.float32).to(Config.DEVICE) for cb in codebooks]
+
+    # bayes_model.diffuse_graph(alpha=0.5)
     
     return bayes_model
 # Inside learner.py
