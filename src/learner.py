@@ -1,4 +1,5 @@
 import time
+from typing import Any
 
 import numpy as np
 import torch
@@ -9,6 +10,48 @@ from .bayes import StreamingNaiveBayes
 from .config import Config
 from .helper import build_hub_neighbors, build_hubs
 from .model import BioEpisodicGraph, ContinualGraph
+
+# ==============================================================================
+# MEMORY SNAPSHOT HELPER
+# ==============================================================================
+
+
+def _snapshot_memory(
+    model: BioEpisodicGraph,
+    block_idx: int,
+    samples_seen: int,
+    phase: str,
+) -> dict[str, Any]:
+    """
+    Captures a lightweight memory snapshot at a single point in training.
+
+    Fields
+    ------
+    block         : block index (0-based)
+    samples_seen  : total training samples processed so far
+    n_nodes       : current episodic node count
+    node_mb       : memory used by the episodic node bank  (variable)
+    proto_mb      : memory used by the prototype buffer    (constant)
+    proj_mb       : memory used by the projection matrix   (constant)
+    total_mb      : sum of the above three
+    phase         : "after_online" | "after_consolidation"
+    """
+    to_mb = 1.0 / (1024 * 1024)
+
+    node_bytes = model.nodes.element_size() * model.nodes.nelement()
+    proto_bytes = model.prototypes.element_size() * model.prototypes.nelement()
+    proj_bytes = model.proj_matrix.element_size() * model.proj_matrix.nelement()
+
+    return {
+        "block": block_idx,
+        "samples_seen": samples_seen,
+        "n_nodes": int(model.nodes.shape[0]),
+        "node_mb": node_bytes * to_mb,
+        "proto_mb": proto_bytes * to_mb,
+        "proj_mb": proj_bytes * to_mb,
+        "total_mb": (node_bytes + proto_bytes + proj_bytes) * to_mb,
+        "phase": phase,
+    }
 
 
 def train_continual_graph(features, labels):
@@ -326,8 +369,16 @@ def train_bio_graph(
 ):
     """
     Simulates the Bio-Inspired learning process:
-    ONLINE: Rapid recording into an episodic graph + running averages.
+    ONLINE:  Rapid recording into an episodic graph + running averages.
     OFFLINE: Sleep-like consolidation, essence transfer, and pruning.
+
+    Returns
+    -------
+    model        : trained BioEpisodicGraph
+    memory_trace : list of dicts from _snapshot_memory, one entry per phase
+                   per block.  Two entries per block when consolidation is
+                   enabled ("after_online" then "after_consolidation");
+                   one entry per block otherwise ("after_online" only).
     """
     if consolidate_every > 0:
         print(
@@ -337,7 +388,7 @@ def train_bio_graph(
         print(f"\n🧠 Starting Bio-Inspired Online Learning (Consolidation Disabled)...")
 
     n_classes = Config.N_TASKS * Config.CLASSES_PER_TASK
-    model = BioEpisodicGraph(input_dim=384, n_classes=n_classes)
+    model = BioEpisodicGraph(input_dim=Config.FEATURE_DIM, n_classes=n_classes)
 
     # Preserve incoming order by default; global shuffling hurts episodic purity.
     if shuffle_stream:
@@ -349,6 +400,7 @@ def train_bio_graph(
     stream_labels = torch.tensor(labels, dtype=torch.long).to(Config.DEVICE)
 
     total_images = len(stream_features)
+    memory_trace: list[dict[str, Any]] = []
 
     # We treat each buffer block as a "Day" (Online Phase) followed by "Sleep" (Offline Phase)
     for i, start_idx in enumerate(range(0, total_images, buffer_size)):
@@ -360,18 +412,33 @@ def train_bio_graph(
         # 1. ONLINE PHASE: Rapid Hippocampal recording
         model.online_step(batch_feat, batch_lbl)
 
+        # Snapshot A — peak memory right after online update, before any pruning
+        memory_trace.append(_snapshot_memory(model, i, end_idx, "after_online"))
+
         # 2. OFFLINE CONSOLIDATION PHASE: Transfer to Long-term Memory & Pruning
         # In a real scenario, this might happen less frequently, but we do it per block here.
         if consolidate_every > 0 and (i + 1) % consolidate_every == 0:
             model.consolidate(lambda_val=lambda_val)
 
+            # Snapshot B — post-sleep memory after pruning; lower than snapshot A
+            memory_trace.append(
+                _snapshot_memory(model, i, end_idx, "after_consolidation")
+            )
+
             print(
-                f"   [Consolidation] Processed {end_idx}/{total_images} samples. Graph size: {len(model.nodes)} nodes."
+                f"   [Block {i}] Processed {end_idx}/{total_images} samples. "
+                f"Nodes: {memory_trace[-2]['n_nodes']} → {memory_trace[-1]['n_nodes']} "
+                f"| Memory: {memory_trace[-2]['total_mb']:.2f} → {memory_trace[-1]['total_mb']:.2f} MB"
             )
 
     # Final consolidation pass for the tail block(s).
     if consolidate_every > 0:
         model.consolidate(lambda_val=lambda_val)
+        memory_trace.append(
+            _snapshot_memory(
+                model, len(memory_trace), total_images, "after_consolidation"
+            )
+        )
 
     print(f"✅ Bio-Graph Training Complete.")
-    return model
+    return model, memory_trace

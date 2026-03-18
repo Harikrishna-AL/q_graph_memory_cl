@@ -11,33 +11,45 @@ from .config import Config
 
 CACHE_DIR = "cache"
 
+# Mapping: backbone name -> output feature dimension
+_BACKBONE_DIMS = {
+    "dinov2": 384,       # ViT-S/14
+    "resnet18": 512,
+    "resnet34": 512,
+    "resnet50": 2048,
+    "resnet101": 2048,
+    "resnet152": 2048,
+    "efficientnet_b0": 1280,
+    "efficientnet_b1": 1280,
+    "efficientnet_b2": 1408,
+    "efficientnet_b3": 1536,
+    "efficientnet_b4": 1792,
+}
 
-# 1. Update: Accept 'dataset_name' to prevent overwriting
+
 def get_cache_paths(dataset_name, use_train):
-    # Ensure folder exists
+    """Return (feat_path, lbl_path) for the current backbone + dataset + split."""
     os.makedirs(CACHE_DIR, exist_ok=True)
 
     split = "train" if use_train else "val"
-    # Clean model name (e.g. "dinov2_vits14")
-    model = Config.DINO_MODEL.replace("/", "_")
-
-    # Clean dataset name (e.g. "cifar100")
+    # Use backbone name so DINOv2 and ResNet caches never collide
+    backbone = Config.BACKBONE.lower().replace("/", "_")
     dname = dataset_name.lower().strip()
 
-    # New Filename Format: {dataset}_{model}_{split}_features.npy
-    feat_path = f"{CACHE_DIR}/{dname}_{model}_{split}_features.npy"
-    lbl_path = f"{CACHE_DIR}/{dname}_{model}_{split}_labels.npy"
+    feat_path = f"{CACHE_DIR}/{dname}_{backbone}_{split}_features.npy"
+    lbl_path  = f"{CACHE_DIR}/{dname}_{backbone}_{split}_labels.npy"
 
     return feat_path, lbl_path
 
 
-# 2. Update: Pass dataset_name through
 def load_cached_features(dataset_name, use_train):
     feat_path, lbl_path = get_cache_paths(dataset_name, use_train)
 
     if os.path.exists(feat_path) and os.path.exists(lbl_path):
+        backbone = Config.BACKBONE
         print(
-            f"💾 Loading cached DINO features for {dataset_name} ({'Train' if use_train else 'Test'})..."
+            f"💾 Loading cached {backbone} features for {dataset_name} "
+            f"({'Train' if use_train else 'Test'})..."
         )
         try:
             features = np.load(feat_path, mmap_mode="r")  # memory-efficient
@@ -66,21 +78,113 @@ def save_cached_features(features, labels, dataset_name, use_train):
     print(f"✅ Cached {len(features)} features to {feat_path}")
 
 
+# ---------------------------------------------------------------------------
+# ResNet feature extractor wrapper
+# ---------------------------------------------------------------------------
+
+class _ResNetExtractor(nn.Module):
+    """
+    Wraps a torchvision ResNet and returns average-pooled penultimate features
+    (before the final classification head) so the API matches DINOv2.
+    """
+    def __init__(self, resnet):
+        super().__init__()
+        # Keep everything except the final FC layer
+        self.backbone = nn.Sequential(*list(resnet.children())[:-1])
+
+    def forward(self, x):
+        # Output shape: (B, C, 1, 1) -> flatten to (B, C)
+        return self.backbone(x).flatten(1)
+
+
+class _EfficientNetExtractor(nn.Module):
+    """
+    Wraps a torchvision EfficientNet and returns average-pooled penultimate features
+    (before the final classification head).
+    """
+    def __init__(self, efficientnet):
+        super().__init__()
+        # EfficientNet has 'features' (conv blocks) and 'classifier' (dropout + linear)
+        # We also need the avgpool layer which sits between them.
+        self.features = efficientnet.features
+        self.avgpool = efficientnet.avgpool
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        return x.flatten(1)
+
+
+# ---------------------------------------------------------------------------
+# Unified backbone loader
+# ---------------------------------------------------------------------------
+
+def load_backbone():
+    """
+    Load the feature-extraction backbone specified by Config.BACKBONE.
+
+    Supported values
+    ----------------
+    "dinov2"              DINOv2 ViT-S/14  (384-d, default)
+    "resnet18"            512-d
+    "resnet34"            512-d
+    "resnet50"            2048-d
+    "resnet101"           2048-d
+    "resnet152"           2048-d
+
+    Sets Config.FEATURE_DIM as a side-effect so the rest of the pipeline
+    is automatically dimension-aware.
+    """
+    backbone_name = Config.BACKBONE.lower().strip()
+
+    if backbone_name not in _BACKBONE_DIMS:
+        raise ValueError(
+            f"Unknown backbone '{backbone_name}'. "
+            f"Choose one of: {list(_BACKBONE_DIMS.keys())}"
+        )
+
+    # Set global feature dimension
+    Config.FEATURE_DIM = _BACKBONE_DIMS[backbone_name]
+
+    if backbone_name == "dinov2":
+        print(f"🦖 Loading DINOv2 ({Config.DINO_MODEL}, dim={Config.FEATURE_DIM})...")
+        model = torch.hub.load(Config.DINO_REPO, Config.DINO_MODEL)
+    else:
+        import torchvision.models as tvm
+        print(f"🏗️  Loading {backbone_name} (dim={Config.FEATURE_DIM})...")
+        constructor = getattr(tvm, backbone_name)
+        weights_name = "IMAGENET1K_V1"
+        if "efficientnet" in backbone_name:
+            # e.g., EfficientNet_B0_Weights.IMAGENET1K_V1
+            weights_name = "DEFAULT"
+        
+        vision_model = constructor(weights=weights_name)
+        if "resnet" in backbone_name:
+            model = _ResNetExtractor(vision_model)
+        elif "efficientnet" in backbone_name:
+            model = _EfficientNetExtractor(vision_model)
+        else:
+            raise ValueError(f"Unknown backbone architecture class: {backbone_name}")
+
+    model.to(Config.DEVICE)
+    model.eval()
+    return model
+
+
+# Keep the old name as an alias so existing call-sites in main.py still work
 def load_dino():
-    print(f"🦖 Loading {Config.DINO_MODEL}...")
-    dino = torch.hub.load(Config.DINO_REPO, Config.DINO_MODEL)
-    dino.to(Config.DEVICE)
-    dino.eval()
-    return dino
+    """Deprecated alias for load_backbone(). Use load_backbone() instead."""
+    return load_backbone()
 
 
-def extract_features(dino, dataloader):
+def extract_features(backbone, dataloader):
+    """Run `backbone` over `dataloader` and return L2-normalised features + labels."""
     print("🔍 Extracting Features (this may take a moment)...")
     all_feats, all_lbls = [], []
     with torch.no_grad():
         for imgs, lbls in dataloader:
             imgs = imgs.to(Config.DEVICE)
-            f = dino(imgs).cpu().numpy()
+            f = backbone(imgs).cpu().numpy()
             # L2 Normalize
             f = f / np.linalg.norm(f, axis=1, keepdims=True)
             all_feats.append(f)
@@ -485,6 +589,87 @@ class BioEpisodicGraph(nn.Module):
 
         self._cap_nodes_per_class()
 
+    def _discriminative_proto_optimization(self, omega):
+        """
+        Sleep-phase discriminative prototype optimization.
+
+        Treats prototypes as a cosine-softmax linear classifier and updates them
+        with weighted cross-entropy, using every retained episodic node as a
+        training sample.  This is mathematically equivalent to training a linear
+        layer on the retained node bank, which closes the gap between NCM
+        (class-mean prototypes) and a fully-supervised linear probe.
+
+        Key properties:
+        - All seen classes are considered simultaneously per gradient step →
+          proper multi-class discrimination, not pairwise margin tricks.
+        - Node importance weights (omega) down-weight noisy / redundant nodes.
+        - Temperature matches BIO_PROTO_TEMP so the optimization objective
+          exactly aligns with the inference scoring path in predict_proto_logits.
+        - If a metric projection is enabled, both nodes and prototypes are
+          embedded through the CURRENT (fixed) projection before scoring,
+          keeping optimization consistent with inference.
+        - Warm-start from current prototype values → stable convergence.
+        """
+        active_labels = torch.unique(self.node_labels)
+        n_active = active_labels.numel()
+        if n_active < 2 or self.nodes.shape[0] < n_active:
+            return
+
+        n_steps = max(1, int(getattr(Config, "BIO_DISC_STEPS", 150)))
+        lr = float(getattr(Config, "BIO_DISC_LR", 0.01))
+        temp = float(getattr(Config, "BIO_PROTO_TEMP", 0.10))
+
+        # Local label index mapping  [0, n_active)
+        label_to_pos = {int(lbl.item()): i for i, lbl in enumerate(active_labels)}
+        node_label_pos = torch.tensor(
+            [label_to_pos[int(lbl.item())] for lbl in self.node_labels],
+            dtype=torch.long,
+            device=self.device,
+        )
+
+        # Prepare node embeddings — fixed during this step, not learned
+        nodes_normed = F.normalize(self.nodes.detach(), p=2, dim=1)
+        if self.use_projection:
+            proj = self.proj_matrix.detach()  # treat current projection as fixed
+            nodes_embed = F.normalize(nodes_normed @ proj, p=2, dim=1)
+        else:
+            proj = None
+            nodes_embed = nodes_normed  # (N, D)
+
+        # Importance weights: higher-omega nodes drive the gradient more
+        weights = omega.detach() + 1e-6
+        weights = weights / weights.sum()
+
+        # Warm-start from current prototype values
+        proto_vars = (
+            self.prototypes[active_labels].detach().clone().requires_grad_(True)
+        )
+        opt = torch.optim.Adam([proto_vars], lr=lr)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt, T_max=n_steps, eta_min=lr * 0.05
+        )
+
+        for _ in range(n_steps):
+            opt.zero_grad()
+
+            # Project + normalize prototypes — matches the predict_proto_logits path
+            if proj is not None:
+                proto_embed = F.normalize(proto_vars @ proj, p=2, dim=1)
+            else:
+                proto_embed = F.normalize(proto_vars, p=2, dim=1)
+
+            # Cosine-softmax cross-entropy: same objective as a normalized linear layer
+            logits = torch.matmul(nodes_embed, proto_embed.t()) / temp  # (N, C_active)
+            ce = F.cross_entropy(logits, node_label_pos, reduction="none")  # (N,)
+            loss = (ce * weights).sum()
+
+            loss.backward()
+            opt.step()
+            scheduler.step()
+
+        # Write back: unit-normalized to match cosine scoring at inference time
+        self.prototypes[active_labels] = F.normalize(proto_vars.detach(), p=2, dim=1)
+
     def consolidate(self, lambda_val=0.1):
         """
         OFFLINE CONSOLIDATION: Transfer essence to prototypes and prune graph.
@@ -516,64 +701,16 @@ class BioEpisodicGraph(nn.Module):
                     lbl
                 ] + lambda_val * mu_consolidated
 
-        # STEP 3.5: Discriminative sleep phase (prototype pull + hard-negative push)
+        # STEP 3.5: Discriminative prototype optimization (cosine-softmax CE)
+        # Replaces the old margin-SGD loop.  See _discriminative_proto_optimization
+        # for the full rationale; the short version: this is equivalent to training
+        # a normalized linear classifier on the retained node bank, which is provably
+        # the right objective for closing the gap with a linear probe baseline.
         if (
             getattr(Config, "BIO_USE_DISCRIM_CONSOLIDATION", True)
             and len(unique_labels) > 0
         ):
-            active_labels = unique_labels
-            n_active = active_labels.numel()
-
-            proto_vars = (
-                self.prototypes[active_labels].detach().clone().requires_grad_(True)
-            )
-            nodes = F.normalize(self.nodes.detach(), p=2, dim=1)
-            node_weights = omega.detach() + 1e-6
-
-            label_to_pos = {int(lbl.item()): i for i, lbl in enumerate(active_labels)}
-            node_label_pos = torch.tensor(
-                [label_to_pos[int(lbl.item())] for lbl in self.node_labels],
-                dtype=torch.long,
-                device=self.device,
-            )
-
-            opt = torch.optim.SGD(
-                [proto_vars], lr=float(getattr(Config, "BIO_DISC_LR", 0.05))
-            )
-            n_steps = max(1, int(getattr(Config, "BIO_DISC_STEPS", 20)))
-            margin = float(getattr(Config, "BIO_DISC_MARGIN", 0.15))
-            neg_weight = float(getattr(Config, "BIO_DISC_NEG_WEIGHT", 1.0))
-
-            for _ in range(n_steps):
-                opt.zero_grad()
-                proto_norm = F.normalize(proto_vars, p=2, dim=1)
-                sims = torch.matmul(nodes, proto_norm.t())  # (N, C_active)
-
-                pos = sims.gather(1, node_label_pos.view(-1, 1)).squeeze(1)
-                loss_pos = ((1.0 - pos) * node_weights).sum() / node_weights.sum()
-
-                if n_active > 1:
-                    class_mask = F.one_hot(node_label_pos, num_classes=n_active).bool()
-                    neg = sims.masked_fill(class_mask, -1e4).max(dim=1).values
-                    loss_margin = (
-                        torch.relu(margin + neg - pos) * node_weights
-                    ).sum() / node_weights.sum()
-
-                    # Encourage class prototypes to separate.
-                    gram = torch.matmul(proto_norm, proto_norm.t())
-                    offdiag = gram - torch.eye(n_active, device=self.device)
-                    loss_sep = torch.relu(offdiag).mean()
-                else:
-                    loss_margin = torch.tensor(0.0, device=self.device)
-                    loss_sep = torch.tensor(0.0, device=self.device)
-
-                loss = loss_pos + (neg_weight * loss_margin) + (0.05 * loss_sep)
-                loss.backward()
-                opt.step()
-
-            self.prototypes[active_labels] = F.normalize(
-                proto_vars.detach(), p=2, dim=1
-            )
+            self._discriminative_proto_optimization(omega)
 
         # STEP 3.6: Sleep-phase metric projection learning (hard-negative contrastive)
         if self.use_projection and len(unique_labels) > 0:

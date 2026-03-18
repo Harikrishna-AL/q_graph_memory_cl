@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 
-from src.baselines import run_baselines, run_statistical_baselines
+from src.baselines import run_baselines, run_statistical_baselines, run_naive_replay_baseline, run_rehearsal_mlp_baseline
 from src.config import Config
 from src.data_utils import get_dataloader
 from src.evaluators import (
@@ -12,6 +12,8 @@ from src.evaluators import (
     evaluate_graph,
     evaluate_hybrid_system,
     generate_figure2_tsne,
+    plot_memory_comparison,
+    plot_memory_trace,
     predict_dual_system,
     run_alpha_ablation,
     run_icml_occlusion_benchmark,
@@ -20,7 +22,8 @@ from src.learner import train_bio_graph
 from src.model import (
     extract_features,
     load_cached_features,
-    load_dino,
+    load_backbone,
+    load_dino,  # kept for backward compat; internally calls load_backbone()
     save_cached_features,
 )
 
@@ -139,13 +142,23 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
 
     # 3. Train Bio-Inspired Graph (new idea)
     print("   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...")
-    bio_model = train_bio_graph(
+    bio_model, memory_trace = train_bio_graph(
         X_stream,
         y_stream,
         shuffle_stream=args.shuffle_stream,
         consolidate_every=args.consolidate_every,
         lambda_val=args.consolidation_lambda,
     )
+
+    # Plot memory trace immediately after training so it's always saved,
+    # not just during the benchmark run.
+    plot_memory_trace(memory_trace, dataset_name=args.dataset)
+
+    # Compare memory footprint against the two extreme baselines:
+    # naive replay (every feature vector) and pure NCM (one mean per class).
+    # Accuracy annotations are filled in after evaluation below.
+    _n_classes = Config.N_TASKS * Config.CLASSES_PER_TASK
+    _feature_dim = Config.FEATURE_DIM  # set by load_backbone(); backbone-agnostic
 
     # 4. Measure Memory Usage
     bio_mem = get_model_memory_usage(bio_model)
@@ -157,7 +170,7 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     if X_val is not None and len(X_val) > 0:
         val_tensor = torch.tensor(X_val, dtype=torch.float32).to(Config.DEVICE)
         val_labels = torch.tensor(y_val, dtype=torch.long).to(Config.DEVICE)
-        alpha_grid = [0.3, 0.5, 0.7, 0.8, 0.9, 1.0]
+        alpha_grid = [0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0]
         best_alpha, best_val_acc = selected_alpha, -1.0
         for alpha in alpha_grid:
             preds = predict_dual_system(bio_model, val_tensor, alpha=alpha)
@@ -183,6 +196,23 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     hybrid_acc = hybrid_results["final_accuracy"]
 
     print(f"   ✅ Run Result: {hybrid_acc * 100:.2f}%")
+
+    # Now that we have the final accuracy we can annotate the comparison plot.
+    # NCM accuracy = alpha=0.0 (pure prototype, no episodic nodes).
+    ncm_acc_val = None
+    if X_val is not None and len(X_val) > 0:
+        val_tensor_cmp = torch.tensor(X_val, dtype=torch.float32).to(Config.DEVICE)
+        val_labels_cmp = torch.tensor(y_val, dtype=torch.long).to(Config.DEVICE)
+        ncm_preds = predict_dual_system(bio_model, val_tensor_cmp, alpha=0.0)
+        ncm_acc_val = (ncm_preds == val_labels_cmp).float().mean().item()
+    plot_memory_comparison(
+        memory_trace,
+        n_classes=_n_classes,
+        feature_dim=_feature_dim,
+        dataset_name=args.dataset,
+        bio_accuracy=hybrid_acc,
+        ncm_accuracy=ncm_acc_val,
+    )
 
     # 8. Run Expensive Benchmarks (Only on the first seed/main run)
     if run_benchmarks:
@@ -221,6 +251,28 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
         print("   📊 Running Statistical Baselines...")
         run_statistical_baselines(X_train, y_train, X_test, y_test)
 
+        print("   📼 Running Naive Replay Buffer Baseline...")
+        replay_results = run_naive_replay_baseline(X_train, y_train, X_test, y_test)
+
+        print("   🔁 Running Rehearsal MLP Baseline (ER + MLP)...")
+        rehearsal_results = run_rehearsal_mlp_baseline(X_train, y_train, X_test, y_test)
+
+        # ── Summary comparison ──────────────────────────────────────────────
+        print("\n" + "─" * 57)
+        print("   📊 MEMORY vs ACCURACY COMPARISON")
+        print("─" * 57)
+        print(f"   {'Method':<30} {'Acc':>8}  {'Memory':>12}")
+        print(f"   {'─'*30} {'─'*8}  {'─'*12}")
+        print(f"   {'Naive Replay (max-cosine)':<30} {replay_results['accuracy']*100:>7.2f}%  {replay_results['memory_mb']:>10.2f} MB")
+        print(f"   {'Rehearsal MLP (ER+MLP)':<30} {rehearsal_results['accuracy']*100:>7.2f}%  {rehearsal_results['memory_mb']:>10.2f} MB")
+        print(f"   {'Bio-Graph (Ours)':<30} {hybrid_acc*100:>7.2f}%  {bio_mem:>10.2f} MB")
+        ratio_vs_naive    = replay_results['memory_mb']    / bio_mem if bio_mem > 0 else float('inf')
+        ratio_vs_rehearsal = rehearsal_results['memory_mb'] / bio_mem if bio_mem > 0 else float('inf')
+        print(f"   {'─'*30} {'─'*8}  {'─'*12}")
+        print(f"   Bio-Graph is {ratio_vs_naive:.1f}× smaller than Naive Replay")
+        print(f"   Bio-Graph is {ratio_vs_rehearsal:.1f}× smaller than Rehearsal NCM")
+        print("─" * 57)
+
     return hybrid_acc, mem_usage
 
 
@@ -236,6 +288,14 @@ def main():
     )
     parser.add_argument(
         "--words", type=int, default=512, help="Words per task per chunk"
+    )
+    parser.add_argument(
+        "--backbone",
+        type=str,
+        default="dinov2",
+        choices=["dinov2", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152",
+                 "efficientnet_b0", "efficientnet_b1", "efficientnet_b2", "efficientnet_b3", "efficientnet_b4"],
+        help="Feature extraction backbone (default: dinov2).",
     )
     parser.add_argument(
         "--dataset", type=str, default="tinyimagenet", help="dataset name"
@@ -324,26 +384,32 @@ def main():
     parser.add_argument(
         "--bio_disc_steps",
         type=int,
-        default=20,
-        help="optimization steps for discriminative consolidation",
+        default=150,
+        help=(
+            "Adam steps for cosine-CE discriminative prototype optimization "
+            "during the sleep phase (more steps → closer to linear-probe quality)"
+        ),
     )
     parser.add_argument(
         "--bio_disc_lr",
         type=float,
-        default=0.05,
-        help="learning rate for discriminative consolidation",
+        default=0.01,
+        help=(
+            "initial learning rate for the Adam + cosine-annealing optimizer "
+            "used in discriminative prototype optimization"
+        ),
     )
     parser.add_argument(
         "--bio_disc_margin",
         type=float,
         default=0.15,
-        help="margin for hard-negative separation during consolidation",
+        help="(legacy, unused) margin that was used by the old margin-SGD step",
     )
     parser.add_argument(
         "--bio_disc_neg_weight",
         type=float,
         default=1.0,
-        help="weight of hard-negative loss term in discriminative consolidation",
+        help="(legacy, unused) neg-weight that was used by the old margin-SGD step",
     )
     parser.add_argument(
         "--bio-mahalanobis",
@@ -422,6 +488,7 @@ def main():
     args = parser.parse_args()
 
     Config.WORDS_PER_TASK = args.words
+    Config.BACKBONE = args.backbone  # must be set before load_backbone()
     Config.BIO_PROTO_WEIGHT = args.bio_proto_weight
     Config.BIO_NODE_TEMP = args.bio_node_temp
     Config.BIO_PROTO_TEMP = args.bio_proto_temp
@@ -455,10 +522,13 @@ def main():
     )
 
     if features is None:
-        dino = load_dino()
-        features, labels = extract_features(dino, loader)
+        backbone = load_backbone()
+        features, labels = extract_features(backbone, loader)
         save_cached_features(features, labels, args.dataset, args.use_train)
     else:
+        # Even when loading from cache we need FEATURE_DIM to be set correctly
+        from src.model import _BACKBONE_DIMS
+        Config.FEATURE_DIM = _BACKBONE_DIMS.get(Config.BACKBONE.lower().strip(), 384)
         print("⚡ Features loaded from cache.")
 
     # 2. Run Experiments across Seeds

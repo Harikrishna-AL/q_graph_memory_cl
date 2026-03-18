@@ -226,6 +226,459 @@ def _plot_results(clean_accs, occ_accs):
     print(f"📈 Plot saved to outputs/results_plot.png & .svg")
 
 
+def plot_memory_trace(memory_trace, dataset_name="dataset"):
+    """
+    Two-panel figure showing how memory evolves block-by-block during training.
+
+    Top panel — Memory in MB
+        Green line : peak memory right after each online step (before pruning)
+        Red line   : post-sleep memory after each consolidation (after pruning)
+        Shaded fill: memory recovered by consolidation each block
+        Grey band  : constant baseline — prototypes + projection matrix
+
+    Bottom panel — Episodic node count
+        Green line : nodes after online step
+        Red line   : nodes after consolidation
+        Shaded fill: nodes pruned each block
+
+    The sawtooth pattern reveals the grow-then-prune rhythm of the bio cycle.
+    """
+    if not memory_trace:
+        print("⚠️  Memory trace is empty — nothing to plot.")
+        return
+
+    online = [s for s in memory_trace if s["phase"] == "after_online"]
+    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+
+    if not online:
+        print("⚠️  No 'after_online' snapshots found.")
+        return
+
+    # Use block index as x so both phases align on the same tick
+    online_x = [s["block"] for s in online]
+    consol_x = [s["block"] for s in consol]
+
+    online_mem = [s["total_mb"] for s in online]
+    consol_mem = [s["total_mb"] for s in consol]
+    online_nodes = [s["n_nodes"] for s in online]
+    consol_nodes = [s["n_nodes"] for s in consol]
+
+    # Constant floor: prototype + projection memory (take from first snapshot)
+    floor_mb = online[0]["proto_mb"] + online[0]["proj_mb"]
+
+    # ── x-axis tick labels: block index with sample count every ~10 blocks ──
+    step = max(1, len(online_x) // 10)
+    tick_positions = online_x[::step]
+    tick_labels = [
+        f"{s['block']}\n({s['samples_seen'] // 1000}k)" for s in online[::step]
+    ]
+
+    fig, (ax_mem, ax_nodes) = plt.subplots(
+        2, 1, figsize=(13, 7), sharex=False, gridspec_kw={"hspace": 0.45}
+    )
+
+    # ── TOP: Memory ──────────────────────────────────────────────────────────
+    ax_mem.plot(
+        online_x,
+        online_mem,
+        "o-",
+        color="#2ca02c",
+        linewidth=1.8,
+        markersize=4,
+        alpha=0.85,
+        label="After online step (peak)",
+    )
+    if consol_mem:
+        ax_mem.plot(
+            consol_x,
+            consol_mem,
+            "s-",
+            color="#d62728",
+            linewidth=1.8,
+            markersize=4,
+            alpha=0.85,
+            label="After consolidation (post-sleep)",
+        )
+        # Shade the gap only where both series share a block index
+        shared_blocks = sorted(set(online_x) & set(consol_x))
+        online_dict = {s["block"]: s["total_mb"] for s in online}
+        consol_dict = {s["block"]: s["total_mb"] for s in consol}
+        shared_peak = [online_dict[b] for b in shared_blocks]
+        shared_post = [consol_dict[b] for b in shared_blocks]
+        ax_mem.fill_between(
+            shared_blocks,
+            shared_post,
+            shared_peak,
+            alpha=0.12,
+            color="#2ca02c",
+            label="Memory freed by consolidation",
+        )
+
+    # Grey band for constant floor
+    ax_mem.axhline(
+        floor_mb,
+        color="grey",
+        linewidth=1.2,
+        linestyle="--",
+        alpha=0.6,
+        label=f"Constant base (proto + proj ≈ {floor_mb:.2f} MB)",
+    )
+
+    ax_mem.set_ylabel("Memory (MB)", fontsize=11)
+    ax_mem.set_title(
+        f"Memory Footprint During Training — {dataset_name}",
+        fontsize=13,
+        fontweight="bold",
+    )
+    ax_mem.set_xticks(tick_positions)
+    ax_mem.set_xticklabels(tick_labels, fontsize=8)
+    ax_mem.set_xlabel("Block  (samples seen)", fontsize=10)
+    ax_mem.legend(fontsize=9, loc="upper left")
+    ax_mem.grid(True, linestyle="--", alpha=0.3)
+
+    # Annotate final values
+    ax_mem.annotate(
+        f"  {online_mem[-1]:.2f} MB",
+        xy=(online_x[-1], online_mem[-1]),
+        fontsize=8,
+        color="#2ca02c",
+        va="center",
+    )
+    if consol_mem:
+        ax_mem.annotate(
+            f"  {consol_mem[-1]:.2f} MB",
+            xy=(consol_x[-1], consol_mem[-1]),
+            fontsize=8,
+            color="#d62728",
+            va="center",
+        )
+
+    # ── BOTTOM: Node count ────────────────────────────────────────────────────
+    ax_nodes.plot(
+        online_x,
+        online_nodes,
+        "o-",
+        color="#2ca02c",
+        linewidth=1.8,
+        markersize=4,
+        alpha=0.85,
+        label="After online step",
+    )
+    if consol_nodes:
+        ax_nodes.plot(
+            consol_x,
+            consol_nodes,
+            "s-",
+            color="#d62728",
+            linewidth=1.8,
+            markersize=4,
+            alpha=0.85,
+            label="After consolidation",
+        )
+        shared_on_nodes = [online_dict[b] for b in shared_blocks]  # reuse dict trick
+        # recompute with node counts
+        online_node_dict = {s["block"]: s["n_nodes"] for s in online}
+        consol_node_dict = {s["block"]: s["n_nodes"] for s in consol}
+        shared_peak_n = [online_node_dict[b] for b in shared_blocks]
+        shared_post_n = [consol_node_dict[b] for b in shared_blocks]
+        ax_nodes.fill_between(
+            shared_blocks,
+            shared_post_n,
+            shared_peak_n,
+            alpha=0.12,
+            color="#2ca02c",
+            label="Nodes pruned by consolidation",
+        )
+
+    ax_nodes.set_ylabel("Episodic node count", fontsize=11)
+    ax_nodes.set_xlabel("Block  (samples seen)", fontsize=10)
+    ax_nodes.set_xticks(tick_positions)
+    ax_nodes.set_xticklabels(tick_labels, fontsize=8)
+    ax_nodes.legend(fontsize=9, loc="upper left")
+    ax_nodes.grid(True, linestyle="--", alpha=0.3)
+
+    # Annotate final node counts
+    ax_nodes.annotate(
+        f"  {online_nodes[-1]}",
+        xy=(online_x[-1], online_nodes[-1]),
+        fontsize=8,
+        color="#2ca02c",
+        va="center",
+    )
+    if consol_nodes:
+        ax_nodes.annotate(
+            f"  {consol_nodes[-1]}",
+            xy=(consol_x[-1], consol_nodes[-1]),
+            fontsize=8,
+            color="#d62728",
+            va="center",
+        )
+
+    os.makedirs("outputs", exist_ok=True)
+    out_base = f"outputs/memory_trace_{dataset_name}"
+    plt.savefig(f"{out_base}.png", dpi=200, bbox_inches="tight")
+    plt.savefig(f"{out_base}.svg", format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"✅ Memory trace saved → {out_base}.png / .svg")
+
+
+def plot_memory_comparison(
+    memory_trace,
+    n_classes,
+    feature_dim=384,
+    dataset_name="dataset",
+    bio_accuracy=None,
+    ncm_accuracy=None,
+    replay_accuracy=None,
+):
+    """
+    Compares memory requirements of three approaches over training time.
+
+    Naive Replay Buffer  — stores every feature vector seen (upper bound)
+    Bio-Inspired Graph   — actual measured memory from the training trace
+    NCM class means      — stores only one mean prototype per class (lower bound)
+
+    Layout
+    ------
+    Main axes  : log-scale y, all three methods visible across 3 orders of magnitude
+    Inset axes : linear-scale zoom into the NCM–Bio region (the real tradeoff)
+    Stats box  : final memory values and compression ratios
+
+    Parameters
+    ----------
+    memory_trace    : list of dicts from _snapshot_memory (learner.py)
+    n_classes       : total number of classes in the benchmark
+    feature_dim     : DINOv2 embedding dimension (default 384)
+    dataset_name    : used in the title and output filename
+    bio_accuracy    : optional float, annotated on the bio line
+    ncm_accuracy    : optional float, annotated on the ncm line
+    replay_accuracy : optional float, annotated on the replay line
+    """
+    if not memory_trace:
+        print("⚠️  Memory trace is empty — nothing to plot.")
+        return
+
+    # ── Extract post-consolidation snapshots (the stable, post-sleep footprint)
+    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+    if not consol:
+        consol = memory_trace  # fallback: no consolidation was run
+
+    bio_x = np.array([s["samples_seen"] for s in consol])
+    bio_y = np.array([s["total_mb"] for s in consol])
+
+    total_samples = int(max(s["samples_seen"] for s in memory_trace))
+    bytes_per_vec = feature_dim * 4  # float32
+
+    # ── Theoretical baselines over the full x range
+    x_full = np.linspace(0, total_samples, 600)
+
+    # Naive replay: one full feature vector kept per training sample
+    replay_y = x_full * bytes_per_vec / (1024**2)
+
+    # NCM: one mean vector per class, classes introduced proportionally to samples
+    ncm_classes = np.clip(n_classes * x_full / total_samples, 0, n_classes)
+    ncm_y = ncm_classes * bytes_per_vec / (1024**2)
+
+    # ── Final values and compression ratios
+    replay_final = total_samples * bytes_per_vec / (1024**2)
+    ncm_final = n_classes * bytes_per_vec / (1024**2)
+    bio_final = float(bio_y[-1]) if len(bio_y) else 0.0
+
+    ratio_bio_vs_replay = replay_final / bio_final if bio_final > 0 else float("inf")
+    ratio_bio_vs_ncm = bio_final / ncm_final if ncm_final > 0 else float("inf")
+
+    # ── Colours
+    C_REPLAY = "#d62728"  # red
+    C_BIO = "#1f77b4"  # blue
+    C_NCM = "#2ca02c"  # green
+
+    fig = plt.figure(figsize=(13, 6))
+    ax = fig.add_subplot(1, 1, 1)
+
+    # ── Main plot (log scale) ─────────────────────────────────────────────────
+    ax.plot(
+        x_full,
+        replay_y,
+        "-",
+        color=C_REPLAY,
+        linewidth=2.2,
+        zorder=3,
+        label=f"Naive Replay Buffer  (stores every vector)",
+    )
+    ax.plot(
+        bio_x,
+        bio_y,
+        "o-",
+        color=C_BIO,
+        linewidth=2.2,
+        markersize=4,
+        zorder=5,
+        label=f"Bio-Inspired Graph — Ours  (post-sleep)",
+    )
+    ax.plot(
+        x_full,
+        ncm_y,
+        "--",
+        color=C_NCM,
+        linewidth=2.0,
+        zorder=3,
+        label=f"NCM class means  (one vector per class)",
+    )
+
+    # ax.set_yscale("log")
+    ax.set_xlim(0, total_samples * 1.05)
+    ax.set_xlabel("Training samples seen", fontsize=12)
+    ax.set_ylabel("Memory  (MB, log scale)", fontsize=12)
+    ax.set_title(
+        f"Memory Requirements — {dataset_name}",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.grid(True, linestyle="--", alpha=0.3, which="both")
+
+    # x-tick labels — scale-aware so small datasets don't show "0k" everywhere
+    x_ticks = np.linspace(0, total_samples, 6)
+
+    def _fmt_samples(v):
+        if v == 0:
+            return "0"
+        if total_samples >= 50_000:
+            return f"{int(v / 1000)}k"
+        if total_samples >= 1_000:
+            return f"{v / 1000:.1f}k"
+        return str(int(v))
+
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels([_fmt_samples(v) for v in x_ticks])
+
+    # Annotate final values on the right edge
+    x_ann = total_samples * 1.01
+    ax.annotate(
+        f" {replay_final:.1f} MB",
+        xy=(total_samples, replay_final),
+        fontsize=8.5,
+        color=C_REPLAY,
+        va="center",
+    )
+    ax.annotate(
+        f" {bio_final:.1f} MB",
+        xy=(total_samples, bio_final),
+        fontsize=8.5,
+        color=C_BIO,
+        va="center",
+    )
+    ax.annotate(
+        f" {ncm_final:.3f} MB",
+        xy=(total_samples, ncm_y[-1]),
+        fontsize=8.5,
+        color=C_NCM,
+        va="center",
+    )
+
+    # Optional accuracy annotations on the lines at mid-point
+    mid = total_samples // 2
+    mid_idx = np.searchsorted(x_full, mid)
+    if replay_accuracy is not None:
+        ax.annotate(
+            f"acc: {replay_accuracy * 100:.1f}%",
+            xy=(x_full[mid_idx], replay_y[mid_idx]),
+            xytext=(0, 12),
+            textcoords="offset points",
+            fontsize=7.5,
+            color=C_REPLAY,
+            ha="center",
+        )
+    if ncm_accuracy is not None:
+        ax.annotate(
+            f"acc: {ncm_accuracy * 100:.1f}%",
+            xy=(x_full[mid_idx], ncm_y[mid_idx]),
+            xytext=(0, -16),
+            textcoords="offset points",
+            fontsize=7.5,
+            color=C_NCM,
+            ha="center",
+        )
+    if bio_accuracy is not None:
+        ax.annotate(
+            f"acc: {bio_accuracy * 100:.1f}%",
+            xy=(bio_x[len(bio_x) // 2], bio_y[len(bio_y) // 2]),
+            xytext=(0, 12),
+            textcoords="offset points",
+            fontsize=7.5,
+            color=C_BIO,
+            ha="center",
+        )
+
+    # ── Stats box ────────────────────────────────────────────────────────────
+    stats_lines = [
+        "Final memory",
+        "─" * 26,
+        f"Replay Buffer :  {replay_final:>7.1f} MB",
+        f"Bio Graph     :  {bio_final:>7.1f} MB",
+        f"NCM           :  {ncm_final:>7.3f} MB",
+        "─" * 26,
+        f"Bio is {ratio_bio_vs_replay:>5.1f}× smaller than Replay",
+        f"NCM is {ratio_bio_vs_ncm:>5.1f}× smaller than Bio",
+    ]
+    stats_text = "\n".join(stats_lines)
+    ax.text(
+        0.015,
+        0.97,
+        stats_text,
+        transform=ax.transAxes,
+        fontsize=8,
+        verticalalignment="top",
+        fontfamily="monospace",
+        bbox=dict(
+            boxstyle="round,pad=0.5", facecolor="white", alpha=0.85, edgecolor="grey"
+        ),
+    )
+
+    ax.legend(fontsize=9.5, loc="lower right")
+
+    # ── Inset: linear zoom into NCM–Bio range ────────────────────────────────
+    # Only draw if the two are meaningfully different
+    if bio_final > ncm_final * 2:
+        y_top = bio_final * 1.35
+        # position: right side, lower-middle
+        ax_in = ax.inset_axes([0.54, 0.08, 0.42, 0.40])
+
+        ax_in.plot(x_full, replay_y, "-", color=C_REPLAY, linewidth=1.4, alpha=0.35)
+        ax_in.plot(bio_x, bio_y, "o-", color=C_BIO, linewidth=1.6, markersize=3)
+        ax_in.plot(x_full, ncm_y, "--", color=C_NCM, linewidth=1.4)
+
+        ax_in.set_ylim(0, y_top)
+        ax_in.set_xlim(0, total_samples)
+        ax_in.set_xticks(x_ticks)
+        ax_in.set_xticklabels(
+            [_fmt_samples(v) for v in x_ticks],
+            fontsize=6.5,
+        )
+        ax_in.set_ylabel("Memory (MB)", fontsize=7)
+        ax_in.set_title("Zoom: NCM vs Bio", fontsize=7.5, pad=3)
+        ax_in.yaxis.set_tick_params(labelsize=6.5)
+        ax_in.grid(True, linestyle="--", alpha=0.25)
+
+        # Shade Bio–NCM gap in the inset
+        ax_in.fill_between(
+            x_full,
+            ncm_y,
+            np.minimum(replay_y, y_top),
+            where=(np.minimum(replay_y, y_top) >= ncm_y),
+            alpha=0.06,
+            color=C_BIO,
+        )
+
+    plt.tight_layout()
+
+    os.makedirs("outputs", exist_ok=True)
+    out_base = f"outputs/memory_comparison_{dataset_name}"
+    plt.savefig(f"{out_base}.png", dpi=200, bbox_inches="tight")
+    plt.savefig(f"{out_base}.svg", format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"✅ Memory comparison saved → {out_base}.png / .svg")
+
+
 def plot_memory_with_errors(method_names, memory_means, memory_stds):
     """
     Plots a bar chart comparing memory usage of different methods with error bars.

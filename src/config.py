@@ -18,9 +18,16 @@ class Config:
     DATASET_NAME = "tiny-imagenet-200"
     URL = "http://cs231n.stanford.edu/tiny-imagenet-200.zip"
 
-    # Model
+    # Model / Backbone
+    # Options: "dinov2" | "resnet18" | "resnet34" | "resnet50" | "resnet101" | "resnet152"
+    BACKBONE = "dinov2"
+
+    # DINOv2-specific
     DINO_REPO = "facebookresearch/dinov2"
     DINO_MODEL = "dinov2_vits14"
+
+    # Feature dimension — automatically updated by load_backbone() in model.py
+    FEATURE_DIM = 384  # default: DINOv2 ViT-S/14
 
     # Continual Learning
     N_TASKS = 20
@@ -48,8 +55,8 @@ class Config:
     BIO_MAX_NODES_PER_CLASS = 64
     BIO_KMEANS_PER_CLASS = 8
     BIO_USE_DISCRIM_CONSOLIDATION = True
-    BIO_DISC_STEPS = 20
-    BIO_DISC_LR = 0.05
+    BIO_DISC_STEPS = 150
+    BIO_DISC_LR = 0.01
     BIO_DISC_MARGIN = 0.15
     BIO_DISC_NEG_WEIGHT = 1.0
     BIO_USE_MAHALANOBIS = True
