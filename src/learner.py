@@ -39,8 +39,18 @@ def _snapshot_memory(
     to_mb = 1.0 / (1024 * 1024)
 
     node_bytes = model.nodes.element_size() * model.nodes.nelement()
-    proto_bytes = model.prototypes.element_size() * model.prototypes.nelement()
-    proj_bytes = model.proj_matrix.element_size() * model.proj_matrix.nelement()
+    
+    # Calculate prototypes bytes by getting the built tensor if classes exist
+    protos, classes = model._build_proto_tensor()
+    if protos is not None:
+        proto_bytes = protos.element_size() * protos.nelement()
+    else:
+        proto_bytes = 0
+
+    if getattr(model, "proj_matrix", None) is not None:
+        proj_bytes = model.proj_matrix.element_size() * model.proj_matrix.nelement()
+    else:
+        proj_bytes = 0
 
     return {
         "block": block_idx,
@@ -360,13 +370,15 @@ def run_sequential_linear_probe(features, labels, n_tasks=20):
 
 
 def train_bio_graph(
-    features,
-    labels,
-    buffer_size=1000,
-    shuffle_stream=False,
-    consolidate_every=0,
-    lambda_val=0.1,
-):
+    features: np.ndarray,
+    labels: np.ndarray,
+    buffer_size: int = 500,
+    consolidate_every: int = 500,
+    shuffle_stream: bool = False,
+    lambda_val: float = 0.1,
+    model: BioEpisodicGraph = None,
+    verbose: bool = True,
+) -> tuple[BioEpisodicGraph, list[dict[str, Any]]]:
     """
     Simulates the Bio-Inspired learning process:
     ONLINE:  Rapid recording into an episodic graph + running averages.
@@ -380,15 +392,16 @@ def train_bio_graph(
                    enabled ("after_online" then "after_consolidation");
                    one entry per block otherwise ("after_online" only).
     """
-    if consolidate_every > 0:
-        print(
-            f"\n🧠 Starting Bio-Inspired Online Learning with Offline Consolidation..."
-        )
-    else:
-        print(f"\n🧠 Starting Bio-Inspired Online Learning (Consolidation Disabled)...")
+    if verbose:
+        if consolidate_every > 0:
+            print(
+                f"\n🧠 Starting Bio-Inspired Online Learning with Offline Consolidation..."
+            )
+        else:
+            print(f"\n🧠 Starting Bio-Inspired Online Learning (Consolidation Disabled)...")
 
-    n_classes = Config.N_TASKS * Config.CLASSES_PER_TASK
-    model = BioEpisodicGraph(input_dim=Config.FEATURE_DIM, n_classes=n_classes)
+    if model is None:
+        model = BioEpisodicGraph(input_dim=Config.FEATURE_DIM)
 
     # Preserve incoming order by default; global shuffling hurts episodic purity.
     if shuffle_stream:
@@ -425,11 +438,12 @@ def train_bio_graph(
                 _snapshot_memory(model, i, end_idx, "after_consolidation")
             )
 
-            print(
-                f"   [Block {i}] Processed {end_idx}/{total_images} samples. "
-                f"Nodes: {memory_trace[-2]['n_nodes']} → {memory_trace[-1]['n_nodes']} "
-                f"| Memory: {memory_trace[-2]['total_mb']:.2f} → {memory_trace[-1]['total_mb']:.2f} MB"
-            )
+            if verbose:
+                print(
+                    f"   [Block {i}] Processed {end_idx}/{total_images} samples. "
+                    f"Nodes: {memory_trace[-2]['n_nodes']} → {memory_trace[-1]['n_nodes']} "
+                    f"| Memory: {memory_trace[-2]['total_mb']:.2f} → {memory_trace[-1]['total_mb']:.2f} MB"
+                )
 
     # Final consolidation pass for the tail block(s).
     if consolidate_every > 0:

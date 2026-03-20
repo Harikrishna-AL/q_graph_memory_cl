@@ -872,7 +872,10 @@ def generate_figure2_tsne(graph_model, X_test, y_test, dataset_name, target_clas
     query_occ = apply_feature_occlusion(query_clean.reshape(1, -1), 0.75)[0]
 
     # 2. Gather Points
-    ncm_centroid = graph_model.prototypes[target_class].detach().cpu().numpy()
+    if hasattr(graph_model, "_get_proto"):
+        ncm_centroid = graph_model._get_proto(target_class).detach().cpu().numpy()
+    else:
+        ncm_centroid = graph_model.prototypes[target_class].detach().cpu().numpy()
     bg_samples = X_test_np[class_indices[:100]]
     num_bg = len(bg_samples)
 

@@ -261,7 +261,6 @@ class ContinualGraph(nn.Module):
         # Create a mapping matrix from Hubs -> Classes
         # This is faster than the loop
         batch_sz = energy.shape[0]
-        n_classes = Config.N_TASKS * Config.CLASSES_PER_TASK  # Or find max label
 
         # Simple Loop (Safe for now)
         unique_labels = torch.unique(self.labels)
@@ -337,26 +336,27 @@ class ContinualGraph(nn.Module):
 
 
 class BioEpisodicGraph(nn.Module):
-    def __init__(self, input_dim=384, n_classes=200):
+    def __init__(self, input_dim=384):
         super().__init__()
         self.device = Config.DEVICE
         self.input_dim = input_dim
-        self.n_classes = n_classes
 
-        # Long-term Memory (NCM Prototypes)
-        self.register_buffer("prototypes", torch.zeros((n_classes, input_dim)))
-        self.register_buffer("prototypes_counts", torch.zeros(n_classes))
-        self.register_buffer("prototypes_m2", torch.zeros((n_classes, input_dim)))
-        self.register_buffer("class_uncertainty", torch.zeros(n_classes))
+        # ── Open-world prototype memory (dicts keyed by class_id) ──────────
+        # No n_classes needed — new classes are discovered lazily from the stream.
+        self._proto_sum   = {}   # class_id -> (D,) sum tensor (unnormalised)
+        self._proto_count = {}   # class_id -> float count
+        self._proto_m2    = {}   # class_id -> (D,) Welford M2 for online variance
+        self._class_unc   = {}   # class_id -> float EMA uncertainty
+
         proj_dim = int(min(getattr(Config, "BIO_PROJ_DIM", 128), input_dim))
         proj_init = torch.eye(input_dim, device=self.device)[:, :proj_dim]
         self.register_buffer("proj_matrix", proj_init.contiguous())
 
-        # Episodic Graph (Hippocampus)
+        # Episodic Graph (Hippocampus) — already dynamic
         self.nodes = torch.zeros((0, input_dim), device=self.device)
         self.node_labels = torch.empty(0, dtype=torch.long, device=self.device)
 
-        # Activation Histories (tracked per task)
+        # Activation histories (tracked per node)
         self.node_freq = torch.zeros(0, device=self.device)
         self.node_strength = torch.zeros(0, device=self.device)
         self.node_consistency = torch.zeros(0, device=self.device)
@@ -378,6 +378,55 @@ class BioEpisodicGraph(nn.Module):
         self.proj_lr = getattr(Config, "BIO_PROJ_LR", 0.03)
         self.proj_steps = getattr(Config, "BIO_PROJ_STEPS", 30)
         self.proj_ortho_reg = getattr(Config, "BIO_PROJ_ORTHO_REG", 1e-2)
+
+    # ── Open-world prototype helpers ─────────────────────────────────────
+
+    @property
+    def seen_classes(self):
+        """Sorted list of class IDs seen so far."""
+        return sorted(self._proto_count.keys())
+
+    def _ensure_class(self, lbl: int):
+        """Lazily initialise dict entries for a new class."""
+        if lbl not in self._proto_sum:
+            d = self.input_dim
+            self._proto_sum[lbl]   = torch.zeros(d, device=self.device)
+            self._proto_count[lbl] = 0.0
+            self._proto_m2[lbl]    = torch.zeros(d, device=self.device)
+            self._class_unc[lbl]   = 0.0
+
+    def _get_proto(self, lbl: int) -> torch.Tensor:
+        """Return the L2-normalised running mean for class lbl."""
+        self._ensure_class(lbl)
+        count = self._proto_count[lbl]
+        if count == 0:
+            return torch.zeros(self.input_dim, device=self.device)
+        mean = self._proto_sum[lbl] / count
+        return F.normalize(mean, p=2, dim=0)
+
+    def _build_proto_tensor(self):
+        """
+        Build (C_seen x D) prototype matrix and a list of corresponding class IDs.
+        Returns: (proto_tensor, class_order_list)
+        """
+        classes = self.seen_classes
+        if not classes:
+            return None, []
+        protos = torch.stack([self._get_proto(c) for c in classes])  # (C, D)
+        return protos, classes
+
+    # ── Welford running stats helpers ────────────────────────────────────
+
+    @property
+    def prototypes_counts(self):
+        """1-D tensor of counts indexed by class ID (for compat). Zero for unseen classes."""
+        if not self._proto_count:
+            return torch.zeros(0, device=self.device)
+        max_cls = max(self._proto_count.keys())
+        counts = torch.zeros(max_cls + 1, device=self.device)
+        for c, n in self._proto_count.items():
+            counts[c] = float(n)
+        return counts
 
     def _append_node(self, node_vec, label):
         self.nodes = torch.cat([self.nodes, node_vec.view(1, -1)], dim=0)
@@ -407,10 +456,22 @@ class BioEpisodicGraph(nn.Module):
         return x @ p
 
     def _prototype_variance(self):
-        counts = self.prototypes_counts.view(-1, 1)
-        denom = torch.clamp(counts - 1.0, min=1.0)
-        var = self.prototypes_m2 / denom
-        return torch.clamp(var, min=self.var_eps)
+        """
+        Return a (C_seen x D) tensor of per-class per-dimension variance,
+        built from the Welford M2 accumulators stored in _proto_m2.
+        Indexed by the same order as seen_classes.
+        """
+        classes = self.seen_classes
+        if not classes:
+            return torch.full((0, self.input_dim), self.var_eps, device=self.device)
+        rows = []
+        for c in classes:
+            count = self._proto_count.get(c, 0.0)
+            m2    = self._proto_m2.get(c, torch.zeros(self.input_dim, device=self.device))
+            denom = max(1.0, count - 1.0)
+            var   = torch.clamp(m2 / denom, min=self.var_eps)
+            rows.append(var)
+        return torch.stack(rows)  # (C_seen, D)
 
     def _class_budgets(self):
         if self.nodes.shape[0] == 0:
@@ -427,9 +488,24 @@ class BioEpisodicGraph(nn.Module):
         base_total = min(total_budget, base * n_active)
         remaining = total_budget - base_total
 
-        proto_var = self._prototype_variance().mean(dim=1)
-        u_var = self._norm01(proto_var[active])
-        u_ema = self._norm01(self.class_uncertainty[active])
+        # Variance: build a (C_seen, D) tensor then index into it
+        proto_var_matrix = self._prototype_variance()  # (C_seen, D)
+        cls_list = self.seen_classes  # same order as _prototype_variance
+        cls_to_idx = {c: i for i, c in enumerate(cls_list)}
+
+        # uncertainty tensors aligned with `active`
+        u_var_list, u_ema_list = [], []
+        for lbl_t in active:
+            lbl = int(lbl_t.item())
+            idx = cls_to_idx.get(lbl)
+            if idx is not None:
+                u_var_list.append(proto_var_matrix[idx].mean())
+            else:
+                u_var_list.append(torch.tensor(0.0, device=self.device))
+            u_ema_list.append(torch.tensor(self._class_unc.get(lbl, 0.0), device=self.device))
+
+        u_var = self._norm01(torch.stack(u_var_list))
+        u_ema = self._norm01(torch.stack(u_ema_list))
         uncertainty = 0.5 * u_var + 0.5 * u_ema
         denom = uncertainty.sum().item()
         if denom <= 0:
@@ -468,7 +544,7 @@ class BioEpisodicGraph(nn.Module):
             if node_priority is not None:
                 score = node_priority[idxs]
             else:
-                proto = self.prototypes[lbl]
+                proto = self._get_proto(int(lbl.item()))
                 dist = torch.norm(self.nodes[idxs] - proto, dim=1)
                 uniq = self._norm01(dist)
                 fidelity = self.node_fidelity[idxs] / (self.node_freq[idxs] + 1e-6)
@@ -497,29 +573,31 @@ class BioEpisodicGraph(nn.Module):
         batch_labels = batch_labels.to(self.device)
         batch_features = F.normalize(batch_features, p=2, dim=1)
 
-        # 1. Cheap running average NCM update
+        # 1. Welford online update for running prototype (mean + variance)
         for i in range(len(batch_features)):
             feat = batch_features[i]
-            lbl = batch_labels[i].item()
-            n_prev = self.prototypes_counts[lbl]
-            n_new = n_prev + 1.0
-            mean_prev = self.prototypes[lbl]
+            lbl  = int(batch_labels[i].item())
+            self._ensure_class(lbl)
 
-            delta = feat - mean_prev
-            mean_new = mean_prev + (delta / n_new)
+            n_new  = self._proto_count[lbl] + 1.0
+            mean_prev = self._proto_sum[lbl] / max(1.0, self._proto_count[lbl])
+
+            delta  = feat - mean_prev
+            new_sum = self._proto_sum[lbl] + feat
+            mean_new = new_sum / n_new
             delta2 = feat - mean_new
 
-            self.prototypes[lbl] = mean_new
-            self.prototypes_m2[lbl] += delta * delta2
-            self.prototypes_counts[lbl] = n_new
+            self._proto_sum[lbl]   = new_sum
+            self._proto_count[lbl] = n_new
+            self._proto_m2[lbl]   += delta * delta2
 
             if n_new > 1:
                 sim = F.cosine_similarity(
                     feat.view(1, -1), mean_new.view(1, -1), dim=1
                 ).item()
                 uncert = max(0.0, 1.0 - sim)
-                self.class_uncertainty[lbl] = (
-                    self.uncert_momentum * self.class_uncertainty[lbl]
+                self._class_unc[lbl] = (
+                    self.uncert_momentum * self._class_unc[lbl]
                     + (1.0 - self.uncert_momentum) * uncert
                 )
 
@@ -641,9 +719,8 @@ class BioEpisodicGraph(nn.Module):
         weights = weights / weights.sum()
 
         # Warm-start from current prototype values
-        proto_vars = (
-            self.prototypes[active_labels].detach().clone().requires_grad_(True)
-        )
+        proto_list = [self._get_proto(int(lbl.item())) for lbl in active_labels]
+        proto_vars = torch.stack(proto_list).detach().clone().requires_grad_(True)
         opt = torch.optim.Adam([proto_vars], lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt, T_max=n_steps, eta_min=lr * 0.05
@@ -668,7 +745,11 @@ class BioEpisodicGraph(nn.Module):
             scheduler.step()
 
         # Write back: unit-normalized to match cosine scoring at inference time
-        self.prototypes[active_labels] = F.normalize(proto_vars.detach(), p=2, dim=1)
+        normed_protos = F.normalize(proto_vars.detach(), p=2, dim=1)
+        for i, lbl_t in enumerate(active_labels):
+            lbl = int(lbl_t.item())
+            count = max(1.0, self._proto_count[lbl])
+            self._proto_sum[lbl] = normed_protos[i] * count
 
     def consolidate(self, lambda_val=0.1):
         """
@@ -697,9 +778,13 @@ class BioEpisodicGraph(nn.Module):
                 mu_consolidated = (omega_class.unsqueeze(1) * v_class).sum(
                     dim=0
                 ) / omega_class.sum()
-                self.prototypes[lbl] = (1 - lambda_val) * self.prototypes[
-                    lbl
-                ] + lambda_val * mu_consolidated
+                old_proto = self._get_proto(int(lbl.item()))
+                new_proto = (1 - lambda_val) * old_proto + lambda_val * mu_consolidated
+                
+                # Write back into dicts
+                # Normalise keeping total count same: just assign new_proto * count to sum
+                count = max(1.0, self._proto_count[int(lbl.item())])
+                self._proto_sum[int(lbl.item())] = new_proto * count
 
         # STEP 3.5: Discriminative prototype optimization (cosine-softmax CE)
         # Replaces the old margin-SGD loop.  See _discriminative_proto_optimization
@@ -726,7 +811,8 @@ class BioEpisodicGraph(nn.Module):
                 )
 
                 nodes = self.nodes.detach()
-                protos = self.prototypes[active_labels].detach()
+                proto_list = [self._get_proto(int(lbl.item())) for lbl in active_labels]
+                protos = torch.stack(proto_list).detach()
                 weights = omega.detach() + 1e-6
 
                 p_var = self.proj_matrix.detach().clone().requires_grad_(True)
@@ -763,8 +849,10 @@ class BioEpisodicGraph(nn.Module):
                 self.proj_matrix.copy_(p_var.detach())
 
         # STEP 4: Prune redundant nodes
+        # Build a proto tensor matched to node_labels
+        node_protos = torch.stack([self._get_proto(int(lbl.item())) for lbl in self.node_labels])
         dist_to_proto = torch.norm(
-            self.nodes - self.prototypes[self.node_labels], dim=1
+            self.nodes - node_protos, dim=1
         )
         uniqueness = self._norm01(dist_to_proto)
 
@@ -795,38 +883,41 @@ class BioEpisodicGraph(nn.Module):
     def predict_proto_logits(self, batch_features):
         """
         System 2 — Cortex (Long-term Prototype Memory).
-
         Returns raw, unscaled logits from the prototype branch only.
-        Masking is applied so that classes with no training samples
-        receive -1e4 (effectively excluded from softmax).
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
         batch_features = batch_features.to(self.device)
         batch_features = F.normalize(batch_features, p=2, dim=1)
 
-        valid_proto = (self.prototypes_counts > 0).view(1, -1)
+        batch_size = batch_features.shape[0]
+        max_cls = max(self.seen_classes) if self.seen_classes else -1
+        if max_cls < 0:
+            return torch.full((batch_size, 1), -1e4, device=self.device)
+            
+        C = max_cls + 1
+        proto_logits = torch.full((batch_size, C), -1e4, device=self.device)
 
+        proto_tensor, classes = self._build_proto_tensor()
+        
         if self.use_mahalanobis and not self.use_projection:
-            var = self._prototype_variance()  # (C, D)
-            diff = batch_features.unsqueeze(1) - self.prototypes.unsqueeze(0)
-            proto_logits = -0.5 * torch.sum((diff * diff) / var.unsqueeze(0), dim=2)
+            var = self._prototype_variance()  # (C_seen, D)
+            diff = batch_features.unsqueeze(1) - proto_tensor.unsqueeze(0)
+            logits_seen = -0.5 * torch.sum((diff * diff) / var.unsqueeze(0), dim=2)
         else:
             batch_embed = F.normalize(self._project(batch_features), p=2, dim=1)
-            proto_bank = F.normalize(self._project(self.prototypes), p=2, dim=1)
-            proto_logits = torch.matmul(batch_embed, proto_bank.t())
+            proto_bank = F.normalize(self._project(proto_tensor), p=2, dim=1)
+            logits_seen = torch.matmul(batch_embed, proto_bank.t())
 
-        return torch.where(
-            valid_proto, proto_logits, torch.full_like(proto_logits, -1e4)
-        )
+        for i, cls_id in enumerate(classes):
+            proto_logits[:, cls_id] = logits_seen[:, i]
+
+        return proto_logits
 
     def predict_node_logits(self, batch_features):
         """
         System 1 — Hippocampus (Episodic Node Memory).
-
         Returns raw, unscaled logits from the episodic node branch only.
-        Per-class score is the max similarity over all stored nodes of that class.
-        Classes with no nodes receive -1e4.
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
@@ -835,16 +926,19 @@ class BioEpisodicGraph(nn.Module):
         batch_embed = F.normalize(self._project(batch_features), p=2, dim=1)
 
         batch_size = batch_features.shape[0]
-        graph_logits = torch.full(
-            (batch_size, self.n_classes), -1e4, device=self.device
-        )
+        max_cls = max(self.seen_classes) if self.seen_classes else -1
+        if max_cls < 0:
+            return torch.full((batch_size, 1), -1e4, device=self.device)
+            
+        C = max_cls + 1
+        graph_logits = torch.full((batch_size, C), -1e4, device=self.device)
 
         if self.nodes.shape[0] > 0:
             node_bank = F.normalize(self._project(self.nodes), p=2, dim=1)
             logits_per_node = torch.matmul(batch_embed, node_bank.t())
             for lbl in torch.unique(self.node_labels):
                 idxs = torch.where(self.node_labels == lbl)[0]
-                graph_logits[:, lbl] = logits_per_node[:, idxs].max(dim=1).values
+                graph_logits[:, int(lbl.item())] = logits_per_node[:, idxs].max(dim=1).values
 
         return graph_logits
 
@@ -862,8 +956,9 @@ class BioEpisodicGraph(nn.Module):
 
         # Guard: nothing learned yet
         if self.nodes.shape[0] == 0 and torch.sum(self.prototypes_counts) == 0:
+            out_dim = max(self.seen_classes) + 1 if self.seen_classes else 1
             return torch.zeros(
-                (batch_features.shape[0], self.n_classes), device=self.device
+                (batch_features.shape[0], out_dim), device=self.device
             )
 
         node_logits = self.predict_node_logits(batch_features)

@@ -17,6 +17,9 @@ from src.evaluators import (
     predict_dual_system,
     run_alpha_ablation,
     run_icml_occlusion_benchmark,
+    _run_hybrid_eval_loop,
+    compute_average_accuracy,
+    compute_average_forgetting,
 )
 from src.learner import train_bio_graph
 from src.model import (
@@ -49,7 +52,11 @@ def get_model_memory_usage(model):
     if hasattr(model, "nodes"):
         mem_bytes += model.nodes.element_size() * model.nodes.nelement()
     # 2. Long-term Prototypes
-    if hasattr(model, "prototypes"):
+    if hasattr(model, "_build_proto_tensor"):
+        protos, _ = model._build_proto_tensor()
+        if protos is not None:
+            mem_bytes += protos.element_size() * protos.nelement()
+    elif hasattr(model, "prototypes"):
         mem_bytes += model.prototypes.element_size() * model.prototypes.nelement()
     # 3. Support for legacy ContinualGraph if needed
     if hasattr(model, "codebooks"):
@@ -142,13 +149,73 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
 
     # 3. Train Bio-Inspired Graph (new idea)
     print("   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...")
-    bio_model, memory_trace = train_bio_graph(
-        X_stream,
-        y_stream,
-        shuffle_stream=args.shuffle_stream,
-        consolidate_every=args.consolidate_every,
-        lambda_val=args.consolidation_lambda,
-    )
+    
+    bio_model = None
+    historical_matrix = []
+    memory_trace = []
+    
+    if getattr(args, "pure_cil", False):
+        print("\n   🌀 --- PURE CIL MODE SCENARIO ---")
+        for task_id in range(Config.N_TASKS):
+            print(f"\n   📚 Training Task {task_id + 1}/{Config.N_TASKS}")
+            start_cls = task_id * Config.CLASSES_PER_TASK
+            end_cls = (task_id + 1) * Config.CLASSES_PER_TASK
+            
+            # Extract only this task from X_stream
+            task_mask = (y_stream >= start_cls) & (y_stream < end_cls)
+            X_stream_task = X_stream[task_mask]
+            y_stream_task = y_stream[task_mask]
+            
+            # Train model sequentially
+            bio_model, tr = train_bio_graph(
+                X_stream_task,
+                y_stream_task,
+                shuffle_stream=args.shuffle_stream,
+                consolidate_every=args.consolidate_every,
+                lambda_val=args.consolidation_lambda,
+                model=bio_model,
+                verbose=False
+            )
+            memory_trace.extend(tr)
+            
+            # Tune alpha on validation set up to current task
+            best_alpha = args.alpha
+            if X_val is not None and len(X_val) > 0:
+                t_val_mask = (y_val < end_cls)
+                val_tensor = torch.tensor(X_val[t_val_mask], dtype=torch.float32).to(Config.DEVICE)
+                val_labels = torch.tensor(y_val[t_val_mask], dtype=torch.long).to(Config.DEVICE)
+                
+                alpha_grid = [0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0]
+                best_val_acc = -1.0
+                for alpha in alpha_grid:
+                    preds = predict_dual_system(bio_model, val_tensor, alpha=alpha)
+                    val_acc = (preds == val_labels).float().mean().item()
+                    if val_acc > best_val_acc:
+                        best_val_acc = val_acc
+                        best_alpha = alpha
+                print(f"   🔎 Tuned best alpha={best_alpha:.2f} (Val Acc: {best_val_acc*100:.1f}%)")
+            
+            # Pure CIL Evaluate using the tuned alpha
+            test_tensor = torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE)
+            test_labels = torch.tensor(y_test, dtype=torch.long).to(Config.DEVICE)
+            hybrid_task_accs = _run_hybrid_eval_loop(bio_model, test_tensor, test_labels, alpha=best_alpha)
+            
+            # Slice only up to current task
+            current_accs = hybrid_task_accs[: task_id + 1]
+            padded = current_accs + [0.0] * (Config.N_TASKS - len(current_accs))
+            historical_matrix.append(padded)
+            
+            task_avg = sum(current_accs) / len(current_accs)
+            print(f"   -> AIA after Task {task_id + 1}: {task_avg*100:.2f}% | Breakdown: {[f'{x*100:.1f}%' for x in current_accs]}")
+    else:
+        bio_model, tr = train_bio_graph(
+            X_stream,
+            y_stream,
+            shuffle_stream=args.shuffle_stream,
+            consolidate_every=args.consolidate_every,
+            lambda_val=args.consolidation_lambda,
+        )
+        memory_trace.extend(tr)
 
     # Plot memory trace immediately after training so it's always saved,
     # not just during the benchmark run.
@@ -190,12 +257,17 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     test_tensor = torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE)
     test_labels = torch.tensor(y_test).to(Config.DEVICE)
 
-    hybrid_results = evaluate_hybrid_system(
-        bio_model, test_tensor, test_labels, alpha=selected_alpha
-    )
-    hybrid_acc = hybrid_results["final_accuracy"]
-
-    print(f"   ✅ Run Result: {hybrid_acc * 100:.2f}%")
+    if getattr(args, "pure_cil", False):
+        historical_matrix_np = np.array(historical_matrix)
+        hybrid_acc = compute_average_accuracy(historical_matrix_np)
+        forgetting = compute_average_forgetting(historical_matrix_np)
+        print(f"\n   🏆 Pure CIL Metrics -> AIA: {hybrid_acc * 100:.2f}% | Forgetting: {forgetting * 100:.2f}%")
+    else:
+        hybrid_results = evaluate_hybrid_system(
+            bio_model, test_tensor, test_labels, alpha=selected_alpha
+        )
+        hybrid_acc = hybrid_results["final_accuracy"]
+        print(f"   ✅ Run Result: {hybrid_acc * 100:.2f}%")
 
     # Now that we have the final accuracy we can annotate the comparison plot.
     # NCM accuracy = alpha=0.0 (pure prototype, no episodic nodes).
@@ -447,6 +519,11 @@ def main():
         dest="bio_use_projection",
         action="store_true",
         help="enable learned sleep-phase metric projection",
+    )
+    parser.add_argument(
+        "--pure-cil",
+        action="store_true",
+        help="evaluate model in a pure class-incremental learning setup (task-by-task AIA)",
     )
     parser.add_argument(
         "--no-bio-projection",
