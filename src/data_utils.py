@@ -98,9 +98,33 @@ def setup_imagenet_r():
         return dataset_root
 
     raise FileNotFoundError(
-        "ImageNet-R not found. Please download and extract it manually."
+        "ImageNet-R not found. Cannot auto-download due to GDrive quota issues. "
+        "Please download 'imagenet-r.tar' manually."
     )
 
+def setup_objectnet():
+    """
+    Checks for ObjectNet.
+    Users must download ObjectNet.zip manually due to license walls.
+    """
+    os.makedirs(Config.DATA_ROOT, exist_ok=True)
+    dataset_root = os.path.join(Config.DATA_ROOT, "objectnet")
+
+    if os.path.exists(dataset_root) and os.path.exists(os.path.join(dataset_root, "images")):
+        print(f"✅ ObjectNet found at {dataset_root}")
+        return dataset_root
+
+    print(f"⚠️  ObjectNet folder not found at {dataset_root}")
+    print(f"👉 Please download it from https://objectnet.dev/ and extract it to {dataset_root}")
+
+    zip_path = os.path.join(Config.DATA_ROOT, "objectnet-1.0.zip")
+    if os.path.exists(zip_path):
+        print("📦 Extracting ObjectNet zip...")
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(dataset_root)
+        return dataset_root
+        
+    raise FileNotFoundError("ObjectNet not found. Cannot auto-download. Please see instructions.")
 
 def setup_domainnet(domain=None):
     """
@@ -154,11 +178,16 @@ def get_dataloader(dataset_name="tinyimagenet", use_train_set=True):
     """
     print(f"🔄 Preparing Dataset: {dataset_name.upper()}...")
 
-    # Standard Transform for DINOv2 (224x224)
+    # Ensure correct resolution based on backbone
+    img_size = 384 if "siglip" in Config.BACKBONE.lower() else 224
+
+    # Standard Transform for Models
     transform = transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize((img_size, img_size)),
             transforms.ToTensor(),
+            # SigLIP and DINOv2 both typically use ImageNet mean/std when extracted this way, 
+            # though official SigLIP pre-processing varies. 
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
@@ -231,6 +260,14 @@ def get_dataloader(dataset_name="tinyimagenet", use_train_set=True):
         print(
             "ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py."
         )
+
+    elif dataset_name.lower() == "objectnet":
+        root = setup_objectnet()
+        img_folder = os.path.join(root, "images") if os.path.exists(os.path.join(root, "images")) else root
+        dataset = ImageFolder(root=img_folder, transform=transform)
+        Config.CLASSES_PER_TASK = 20
+        Config.N_TASKS = 15 # 300 classes
+        print("ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes (first 300 classes). Train/test split handled in main.py.")
 
     else:
         raise ValueError(

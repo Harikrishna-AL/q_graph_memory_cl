@@ -14,6 +14,8 @@ CACHE_DIR = "cache"
 # Mapping: backbone name -> output feature dimension
 _BACKBONE_DIMS = {
     "dinov2": 384,       # ViT-S/14
+    "dinov2_giant": 1536,# ViT-g/14
+    "siglip": 1152,      # vit_so400m_patch14_siglip_384
     "resnet18": 512,
     "resnet34": 512,
     "resnet50": 2048,
@@ -149,6 +151,16 @@ def load_backbone():
     if backbone_name == "dinov2":
         print(f"🦖 Loading DINOv2 ({Config.DINO_MODEL}, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load(Config.DINO_REPO, Config.DINO_MODEL)
+    elif backbone_name == "dinov2_giant":
+        print(f"🦖 Loading DINOv2 Giant (dinov2_vitg14_reg, dim={Config.FEATURE_DIM})...")
+        model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitg14_reg')
+    elif backbone_name == "siglip":
+        try:
+            import timm
+        except ImportError:
+            raise ImportError("timm is required for SigLIP models. Run: pip install timm")
+        print(f"👀 Loading SigLIP SO400m (dim={Config.FEATURE_DIM})...")
+        model = timm.create_model('vit_so400m_patch14_siglip_384.webli', pretrained=True, num_classes=0)
     else:
         import torchvision.models as tvm
         print(f"🏗️  Loading {backbone_name} (dim={Config.FEATURE_DIM})...")
