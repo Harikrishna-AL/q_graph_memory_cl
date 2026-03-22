@@ -26,7 +26,7 @@ fi
 if [ ! -d "data/domainnet/real" ]; then
     echo "[Data] Downloading DomainNet (Real)..."
     mkdir -p data/domainnet
-    wget -nc http://csr.bu.edu/ftp/visda19/clf/real.zip -O data/domainnet/real.zip
+    wget -nc http://csr.bu.edu/ftp/visda/2019/multi-source/real.zip -O data/domainnet/real.zip
     echo "[Data] Extracting DomainNet (Real)..."
     unzip -q -n data/domainnet/real.zip -d data/domainnet/real/
 else
