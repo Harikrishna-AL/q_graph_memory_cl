@@ -179,16 +179,19 @@ def get_dataloader(dataset_name="tinyimagenet", use_train_set=True):
     print(f"🔄 Preparing Dataset: {dataset_name.upper()}...")
 
     # Ensure correct resolution based on backbone
-    img_size = 384 if "siglip" in Config.BACKBONE.lower() else 224
+    is_siglip = "siglip" in Config.BACKBONE.lower()
+    img_size = 384 if is_siglip else 224
+
+    mean = [0.5, 0.5, 0.5] if is_siglip else [0.485, 0.456, 0.406]
+    std = [0.5, 0.5, 0.5] if is_siglip else [0.229, 0.224, 0.225]
+    interp = transforms.InterpolationMode.BICUBIC if is_siglip else transforms.InterpolationMode.BILINEAR
 
     # Standard Transform for Models
     transform = transforms.Compose(
         [
-            transforms.Resize((img_size, img_size)),
+            transforms.Resize((img_size, img_size), interpolation=interp),
             transforms.ToTensor(),
-            # SigLIP and DINOv2 both typically use ImageNet mean/std when extracted this way, 
-            # though official SigLIP pre-processing varies. 
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Normalize(mean=mean, std=std),
         ]
     )
 

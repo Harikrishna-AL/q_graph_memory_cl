@@ -10,9 +10,7 @@ class Config:
         if torch.cuda.is_available()
         else torch.device("cpu")
     )
-
-    DEVICE = torch.device("cpu")
-
+    
     # Data
     DATA_ROOT = "./data"
     DATASET_NAME = "tiny-imagenet-200"

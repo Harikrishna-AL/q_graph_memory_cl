@@ -53,7 +53,7 @@ def main():
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(args.backbone.lower().strip(), 384)
     features, labels = load_cached_features(args.dataset, use_train=True)
     if features is None or labels is None:
-        train_loader = get_dataloader(args.dataset, use_train_set=True)
+        _, train_loader = get_dataloader(args.dataset, use_train_set=True)
         backbone = load_backbone()
         features, labels = extract_features(backbone, train_loader)
         save_cached_features(features, labels, args.dataset, True)
