@@ -38,8 +38,8 @@ echo " 🚀 STEP 2: RUNNING EXPERIMENTS"
 echo "=================================================="
 
 # Grid Definition
-DATASETS=("imagenet_r" "domainnet_real")
-BACKBONES=("dinov2_giant" "siglip")
+DATASETS=("tinyimagenet", imagenet_r" "domainnet_real")
+BACKBONES=("dinov2_giant" "siglip", "resnet50)
 
 export PYTHONUNBUFFERED=1
 
