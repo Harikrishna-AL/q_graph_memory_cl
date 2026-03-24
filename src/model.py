@@ -20,6 +20,8 @@ _BACKBONE_DIMS = {
     "resnet34": 512,
     "resnet50": 2048,
     "resnet50_ssl": 2048,
+    "resnet50_clip": 1024,
+    "resnet50_lightly_simclr": 2048,
     "resnet101": 2048,
     "resnet152": 2048,
     "efficientnet_b0": 1280,
@@ -165,6 +167,35 @@ def load_backbone():
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
+    elif backbone_name == "resnet50_clip":
+        try:
+            import timm
+        except ImportError:
+            raise ImportError("timm is required for resnet50_clip. Run: pip install timm")
+        print(f"🎯 Loading CLIP ResNet50 (resnet50_clip.openai, dim={Config.FEATURE_DIM})...")
+        model = timm.create_model('resnet50_clip.openai', pretrained=True, num_classes=0)
+    elif backbone_name == "resnet50_lightly_simclr":
+        print(f"🤖 Loading Lightly-AI SimCLR ResNet50 (dim={Config.FEATURE_DIM})...")
+        try:
+            from huggingface_hub import hf_hub_download
+        except ImportError:
+            raise ImportError("huggingface_hub is required to download from Lightly. Run: pip install huggingface_hub")
+        
+        weights_path = hf_hub_download(repo_id="lightly-ai/simclrv1-imagenet1k-resnet50-1x", filename="resnet50-1x.pth")
+        import torchvision.models as tvm
+        vision_model = tvm.resnet50(weights=None)
+        state_dict = torch.load(weights_path, map_location="cpu")
+        
+        # Strip 'backbone.' prefix if Lightly uses it to isolate the encoder from the SSL MLP projector head
+        clean_sd = {}
+        for k, v in state_dict.items():
+            if k.startswith("backbone."):
+                clean_sd[k.replace("backbone.", "")] = v
+            else:
+                clean_sd[k] = v
+                
+        vision_model.load_state_dict(clean_sd, strict=False)
+        model = _ResNetExtractor(vision_model)
     else:
         import torchvision.models as tvm
         print(f"🏗️  Loading {backbone_name} (dim={Config.FEATURE_DIM})...")
