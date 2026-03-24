@@ -1,0 +1,307 @@
+==================================================
+ 📖 RUNNING THE 5-STAGE TQM PAPER NARRATIVE 📖
+ Dataset: DOMAINNET_REAL | Backbone: DINOV2_GIANT
+==================================================
+
+⚠️  No cache found at cache/domainnet_real_dinov2_giant_train_features.npy
+🔄 Preparing Dataset: DOMAINNET_REAL...
+✅ DomainNet (real) found at ./data/domainnet/real
+ℹ️  Note: DomainNet split is handled in main.py (80/20 per task).
+✅ Loaded 175327 images. Classes expected: 345
+🦖 Loading DINOv2 Giant (dinov2_vitg14_reg, dim=1536)...
+🔍 Extracting Features (this may take a moment)...
+✅ Cached 175327 features to cache/domainnet_real_dinov2_giant_train_features.npy
+
+🚀 --- STAGE: 1. Standard NCM ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [1. Standard NCM] Finished in 246.0s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 0.01 MB
+
+🚀 --- STAGE: 2. Basic Replay (Raw Features) ---
+✅ [2. Basic Replay (Raw Features)] Finished in 794.6s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 821.84 MB
+
+🚀 --- STAGE: 2b. Optimized Replay (Linear + ER) ---
+✅ [2b. Optimized Replay (Linear + ER)] Finished in 246.7s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 821.84 MB
+
+🚀 --- STAGE: 3. Node-Replay (Episodic Graph Only) ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [3. Node-Replay (Episodic Graph Only)] Finished in 245.9s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 0.01 MB
+
+🚀 --- STAGE: 4. N-Node Sweeps (Varying graph capacity) ---
+
+🚀 --- STAGE: Sweep Floor=0.1 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.1] Finished in 245.1s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 0.01 MB
+
+🚀 --- STAGE: Sweep Floor=0.4 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.4] Finished in 245.9s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 0.01 MB
+
+🚀 --- STAGE: Sweep Floor=0.8 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.8] Finished in 245.1s
+   🏆 AIA: 4.35% | Forgetting: 0.00% | Memory: 0.01 MB
+
+🚀 --- STAGE: 5. Full TQM Algorithm (Ours) ---
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 126235 | Val samples: 14026
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 1: 100.00% | Breakdown: ['100.0%']
+
+   📚 Training Task 2/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 2: 50.00% | Breakdown: ['100.0%', '0.0%']
+
+   📚 Training Task 3/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 3: 33.33% | Breakdown: ['100.0%', '0.0%', '0.0%']
+
+   📚 Training Task 4/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 4: 25.00% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 5/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 5: 20.00% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 6/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 6: 16.67% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 7/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 7: 14.29% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 8/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 8: 12.50% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 9/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 9: 11.11% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 10/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 10: 10.00% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 11/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 11: 9.09% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 12/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 12: 8.33% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 13/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 13: 7.69% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 14/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 14: 7.14% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 15/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 15: 6.67% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 16/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 16: 6.25% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 17/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 17: 5.88% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 18/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 18: 5.56% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 19/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 19: 5.26% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 20/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 20: 5.00% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 21/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 21: 4.76% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 22/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 22: 4.55% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+
+   📚 Training Task 23/23
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 100.0%)
+   -> AIA after Task 23: 4.35% | Breakdown: ['100.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%', '0.0%']
+✅ Memory trace saved → outputs/memory_trace_domainnet_real.png / .svg
+   🧠 Bio-Graph Memory Footprint: 0.01 MB
+   🔎 Val alpha=0.00 -> acc=100.00%
+   🔎 Val alpha=0.30 -> acc=100.00%
+   🔎 Val alpha=0.50 -> acc=100.00%
+   🔎 Val alpha=0.70 -> acc=100.00%
+   🔎 Val alpha=0.80 -> acc=100.00%
+   🔎 Val alpha=0.90 -> acc=100.00%
+   🔎 Val alpha=1.00 -> acc=100.00%
+   ✅ Selected alpha: 0.00 | Val Acc: 100.00%
+
+   🏆 Pure CIL Metrics -> AIA: 4.35% | Forgetting: 0.00%
+✅ Memory comparison saved → outputs/memory_comparison_domainnet_real.png / .svg
+✅ [5. Full TQM Algorithm (Ours)] Finished in 224.5s
+   🏆 AIA: 4.35% | Memory: 0.01 MB
+
+==================================================
+ 🎯 FINAL STORYLINE RESULTS 
+==================================================
+1. Standard NCM          | AIA: 4.3% | Mem: ~0 MB
+2. Replay (Raw Features) | AIA: 4.3% | Mem: 821.8 MB
+2b. Replay (Linear + ER) | AIA: 4.3% | Mem: 821.8 MB
+3. Node-Replay Only      | AIA: 4.3% | Mem: 0.0 MB
+4. N-Node Sweeps (Best)  | AIA: 4.3% | Mem: 0.0 MB  [Floor=0.10]
+5. **TQM (Full)**        | AIA: 4.3% | Mem: 0.0 MB
+==================================================

@@ -35,7 +35,7 @@ class Config:
 
     # Hyperparameters
     WORDS_PER_TASK = 512
-    BATCH_SIZE = 128
+    BATCH_SIZE = 2048
     TRAIN_TEST_SPLIT = 0.8  # 80% Memory, 20% Test
     SEED = 42
 

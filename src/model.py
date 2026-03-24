@@ -19,6 +19,7 @@ _BACKBONE_DIMS = {
     "resnet18": 512,
     "resnet34": 512,
     "resnet50": 2048,
+    "resnet50_ssl": 2048,
     "resnet101": 2048,
     "resnet152": 2048,
     "efficientnet_b0": 1280,
@@ -161,6 +162,9 @@ def load_backbone():
             raise ImportError("timm is required for SigLIP models. Run: pip install timm")
         print(f"👀 Loading SigLIP SO400m (dim={Config.FEATURE_DIM})...")
         model = timm.create_model('vit_so400m_patch14_siglip_384.webli', pretrained=True, num_classes=0)
+    elif backbone_name == "resnet50_ssl":
+        print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
+        model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
     else:
         import torchvision.models as tvm
         print(f"🏗️  Loading {backbone_name} (dim={Config.FEATURE_DIM})...")
