@@ -4,6 +4,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+try:
+    import torch.mps
+except ImportError:
+    pass
 
 from src.config import Config
 
@@ -20,7 +24,7 @@ _BACKBONE_DIMS = {
     "resnet34": 512,
     "resnet50": 2048,
     "resnet50_ssl": 2048,
-    "resnet50_clip": 1024,
+    "resnet50_clip": 2048,
     "resnet50_lightly_simclr": 2048,
     "resnet101": 2048,
     "resnet152": 2048,
@@ -120,6 +124,39 @@ class _EfficientNetExtractor(nn.Module):
         return x.flatten(1)
 
 
+class AlignmentLayer(nn.Module):
+    """
+    The Alignment Layer (NCPTM-CIL) with Residual Connection.
+    Acts as a 'learned nudge' to move frozen backbone features 
+    into a perfect ETF configuration without destroying their 
+    original discriminative power.
+    """
+    def __init__(self, d_in, d_out):
+        super().__init__()
+        # Use a Residual path to preserve backbone quality
+        # If d_in != d_out, we use a projection for the identity path
+        self.use_projection = (d_in != d_out)
+        if self.use_projection:
+            self.proj = nn.Linear(d_in, d_out, bias=False)
+            
+        self.net = nn.Sequential(
+            nn.Linear(d_in, d_in),
+            nn.LeakyReLU(0.1),
+            nn.Linear(d_in, d_out)
+        )
+        
+        # Initialize the MLP to be a 'small correction' initially
+        nn.init.zeros_(self.net[-1].weight)
+        nn.init.zeros_(self.net[-1].bias)
+
+    def forward(self, x):
+        identity = self.proj(x) if self.use_projection else x
+        # Increased Authority: 0.5 nudge allows the model to actually 
+        # fix backbone overlaps rather than just 'suggest' a change.
+        out = identity + 0.5 * self.net(x)
+        return F.normalize(out, p=2, dim=1)
+
+
 # ---------------------------------------------------------------------------
 # Unified backbone loader
 # ---------------------------------------------------------------------------
@@ -186,15 +223,27 @@ def load_backbone():
         vision_model = tvm.resnet50(weights=None)
         state_dict = torch.load(weights_path, map_location="cpu")
         
-        # Strip 'backbone.' prefix if Lightly uses it to isolate the encoder from the SSL MLP projector head
+        # PyTorch Lightning heavily nests weights inside a 'state_dict' key
+        if "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+            
+        # Strip generic SSL encoder prefixes to isolate the pure ResNet weights
         clean_sd = {}
         for k, v in state_dict.items():
-            if k.startswith("backbone."):
-                clean_sd[k.replace("backbone.", "")] = v
-            else:
-                clean_sd[k] = v
+            new_k = k
+            for prefix in ["backbone.", "resnet.", "model.backbone.", "model.resnet.", "encoder.", "model."]:
+                if new_k.startswith(prefix):
+                    new_k = new_k.replace(prefix, "")
+            clean_sd[new_k] = v
                 
-        vision_model.load_state_dict(clean_sd, strict=False)
+        missing, unexpected = vision_model.load_state_dict(clean_sd, strict=False)
+        
+        # ResNet50 has exactly ~320 keys (weights/biases/buffers). If missing is 320, we failed to map!
+        loaded_keys = len(vision_model.state_dict()) - len(missing)
+        print(f"   => Successfully mapped {loaded_keys} ResNet layers from Lightly checkpoint!")
+        if loaded_keys == 0:
+            print("   => CRITICAL ERROR: 0 layers mapped! The model is randomly initialized!")
+            
         model = _ResNetExtractor(vision_model)
     else:
         import torchvision.models as tvm
@@ -260,17 +309,24 @@ def extract_features(backbone, dataloader):
             imgs = imgs.to(Config.DEVICE)
             
             # 🔥 Accelerate throughput by 3-4x using Mixed Precision (GPU Tensor Cores)
+            # EXCEPTION: We explicitly disable FP16 for ResNet50 (especially Lightly/SimCLR). 
+            # Their contrastive temperature-scaled Batch-Norms sporadically exceed 65504 locally, triggering catastrophic `NaN` overflows in Tensor Cores!
             device_type = "cuda" if torch.cuda.is_available() else "cpu"
-            if device_type == "cpu":
-                # CPU autocast only supports bfloat16 but often isn't globally available, so bypass it cleanly
-                f = backbone(imgs)
-            else:
+            use_amp = device_type == "cuda" and ("dinov2" in Config.BACKBONE.lower() or "siglip" in Config.BACKBONE.lower())
+            
+            if use_amp:
                 with torch.autocast(device_type="cuda"):
                     f = backbone(imgs)
+            else:
+                f = backbone(imgs)
             
             f = f.float().cpu().numpy()
-            # L2 Normalize
-            f = f / np.linalg.norm(f, axis=1, keepdims=True)
+            
+            # L2 Normalize natively with a pure zero-division protection just in case a crop is completely black
+            f_norm = np.linalg.norm(f, axis=1, keepdims=True)
+            f_norm[f_norm == 0] = 1e-8 # mathematically secure the normalization scalar
+            f = f / f_norm
+            
             all_feats.append(f)
             if torch.is_tensor(lbls):
                 all_lbls.append(lbls.cpu().numpy())
@@ -434,6 +490,29 @@ class BioEpisodicGraph(nn.Module):
         self._proto_count = {}   # class_id -> float count
         self._proto_m2    = {}   # class_id -> (D,) Welford M2 for online variance
         self._class_unc   = {}   # class_id -> float EMA uncertainty
+        self._class_subspaces = {} # class_id -> (D, K) orthonormal basis tensors
+        
+        # ── RLA: Recursive Linear Alignment Accumulators ───────────────────
+        # A: (D, D) - Sum of outer products (X^T X)
+        # B: (D, D_align) - Correlation with ETF (X^T W_etf)
+        d_in = input_dim
+        d_out = getattr(Config, "BIO_ALIGN_DIM", 256)
+        self.register_buffer("_RLA_A", torch.zeros((d_in, d_in), device=self.device))
+        self.register_buffer("_RLA_B", torch.zeros((d_in, d_out), device=self.device))
+        self.register_buffer("_RLA_P", torch.eye(d_in, device=self.device)[:, :d_out])
+
+        # Pre-generate Simplex ETF matrix for maximally separated prototypes
+        # Both nc_align and analytic_etf require an ETF target frame.
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        if getattr(Config, "BIO_USE_ETF", False) or mode in ["nc_align", "analytic_etf"]:
+            # For nc_align/analytic_etf, the ETF should match the ALIGN_DIM
+            etf_dim = getattr(Config, "BIO_ALIGN_DIM", 256) if mode in ["nc_align", "analytic_etf"] else input_dim
+            self._etf_matrix = self._generate_simplex_etf(Config.BIO_ETF_MAX_CLASSES, etf_dim)
+        else:
+            self._etf_matrix = None
+
+        # Alignment Layer (NC-Alignment mode)
+        self.align_layer = AlignmentLayer(input_dim, getattr(Config, "BIO_ALIGN_DIM", 256)).to(self.device)
 
         proj_dim = int(min(getattr(Config, "BIO_PROJ_DIM", 128), input_dim))
         proj_init = torch.eye(input_dim, device=self.device)[:, :proj_dim]
@@ -481,6 +560,128 @@ class BioEpisodicGraph(nn.Module):
             self._proto_count[lbl] = 0.0
             self._proto_m2[lbl]    = torch.zeros(d, device=self.device)
             self._class_unc[lbl]   = 0.0
+
+    def _generate_simplex_etf(self, k, d):
+        """
+        Generates a Simplex Equiangular Tight Frame (ETF).
+        Vertices are maximally separated on the hypersphere.
+        """
+        # A Simplex ETF for K classes in D dimensions requires D >= K-1
+        # If D < K-1, we generate a 'Near-ETF' using a random orthogonal projection
+        if d < k - 1:
+            # Random frame - compute on CPU to avoid MPS svd issues
+            W = torch.randn(d, k, device="cpu")
+            U, S, V = torch.svd(W)
+            return V.to(self.device) # (k, d)
+        
+        # Standard Simplex ETF construction
+        # W = sqrt(k/(k-1)) * (I - 1/k 11^T)
+        # Compute on CPU for stability and to avoid MPS warnings
+        I = torch.eye(k, device="cpu")
+        ones = torch.ones((k, k), device="cpu")
+        M = I - (1.0 / k) * ones
+        
+        # Extract the k-1 non-zero eigenvectors
+        U, S, V = torch.svd(M)
+        # V is (k, k). Columns corresponding to non-zero eigenvalues form the ETF basis.
+        # We take the first 'd' dimensions (or k-1 if d is larger)
+        basis = V[:, :min(d, k-1)] # (k, d_eff)
+        
+        # Unit normalize and move back to target device
+        return F.normalize(basis.to(self.device), p=2, dim=1) # (K, D)
+
+    def _apply_etf_anchoring(self):
+        """
+        Optimal Prototype-to-ETF Alignment using the Hungarian Algorithm.
+        """
+        if self._etf_matrix is None:
+            return
+
+        classes = self.seen_classes
+        if not classes:
+            return
+
+        # 1. Build current prototype matrix
+        protos = torch.stack([self._get_proto(c) for c in classes]) # (C_seen, D)
+        
+        # 2. Slice the ETF matrix to match the current number of classes
+        # (For progressive learning, we always match the seen classes to the best 'slots')
+        etf_vertices = self._etf_matrix[:len(classes)] # (C_seen, D)
+
+        # 3. Compute cost matrix (Distance between prototypes and ETF vertices)
+        # We use cosine distance (1 - similarity)
+        dist_matrix = 1.0 - torch.matmul(protos, etf_vertices.t()) # (C_seen, C_seen)
+
+        # 4. Hungarian Matching
+        from scipy.optimize import linear_sum_assignment
+        row_ind, col_ind = linear_sum_assignment(dist_matrix.cpu().numpy())
+
+        # 5. Anchor: Move prototypes to their assigned ETF vertices
+        # In the 'Ideal' Neural Collapse state (NC2), the prototypes ARE the ETF vertices.
+        # For DINOv2, we trust the features enough to do Hard Anchoring (1.0).
+        backbone = Config.BACKBONE.lower().strip()
+        blend_weight = 1.0 if "dinov2" in backbone else 0.8
+        
+        for i, class_idx in enumerate(row_ind):
+            lbl = classes[class_idx]
+            target_vertex = etf_vertices[col_ind[i]]
+            
+            if blend_weight >= 1.0:
+                refined_proto = target_vertex
+            else:
+                old_proto = self._get_proto(lbl)
+                refined_proto = F.normalize((1.0 - blend_weight) * old_proto + blend_weight * target_vertex, p=2, dim=0)
+            
+            count = max(1.0, self._proto_count[lbl])
+            self._proto_sum[lbl] = refined_proto * count
+
+    def _update_class_subspaces(self, k=10):
+        """
+        Compute a low-rank orthonormal basis (subspace) for each class 
+        using its episodic node bank. This captures the local manifold 
+        variation rather than just a single point.
+        
+        Subspaces are ALWAYS computed in the backbone space to provide 
+        a robust generative signal (System 1) complementary to the 
+        aligned discriminative signal (System 2).
+        """
+        unique_labels = torch.unique(self.node_labels)
+        
+        for lbl_t in unique_labels:
+            lbl = int(lbl_t.item())
+            mask = self.node_labels == lbl_t
+            class_nodes = self.nodes[mask] # (N_nodes, D_backbone)
+            
+            if class_nodes.shape[0] < 2:
+                continue
+                
+            # SYSTEM 1 Manifold Calculation
+            mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+            
+            if mode == "analytic_etf" and self._RLA_P is not None:
+                # Use aligned space for manifolds
+                class_nodes = F.normalize(torch.matmul(class_nodes, self._RLA_P), p=2, dim=1)
+                classes_list = self.seen_classes
+                label_to_idx = {l: i for i, l in enumerate(classes_list)}
+                mu_c = self._etf_matrix[label_to_idx[lbl]]
+            else:
+                # Use generative backbone space
+                mu_c = self._get_proto(lbl)
+            
+            # Orthonormal basis via SVD on CPU
+            centered_nodes = (class_nodes - mu_c).detach().cpu()
+            
+            try:
+                k_eff = min(k, class_nodes.shape[0] - 1)
+                # Exact SVD on CPU
+                U, S, Vh = torch.linalg.svd(centered_nodes, full_matrices=False)
+                
+                # Principal components: (D_backbone, k_eff)
+                V_basis = Vh[:k_eff].t()
+                
+                self._class_subspaces[lbl] = V_basis.to(self.device)
+            except Exception as e:
+                continue
 
     def _get_proto(self, lbl: int) -> torch.Tensor:
         """Return the L2-normalised running mean for class lbl."""
@@ -687,6 +888,23 @@ class BioEpisodicGraph(nn.Module):
                     self.uncert_momentum * self._class_unc[lbl]
                     + (1.0 - self.uncert_momentum) * uncert
                 )
+            
+            # 1.5 Update RLA Accumulators (X^T X and X^T W_etf)
+            if getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd") == "analytic_etf":
+                if self._etf_matrix is not None:
+                    # w_target: (1, D_align)
+                    # We map class label to the specific ETF slot
+                    classes_list = self.seen_classes
+                    label_to_idx = {l: i for i, l in enumerate(classes_list)}
+                    idx = label_to_idx.get(lbl, -1)
+                    
+                    if idx >= 0:
+                        w_target = self._etf_matrix[idx].unsqueeze(0)
+                        feat_uns = feat.unsqueeze(0)
+                        
+                        # Accumulate
+                        self._RLA_A += torch.matmul(feat_uns.t(), feat_uns)
+                        self._RLA_B += torch.matmul(feat_uns.t(), w_target)
 
         # 2. Update Activation History for EXISTING nodes
         if self.nodes.shape[0] > 0:
@@ -783,6 +1001,12 @@ class BioEpisodicGraph(nn.Module):
         n_steps = max(1, int(getattr(Config, "BIO_DISC_STEPS", 150)))
         lr = float(getattr(Config, "BIO_DISC_LR", 0.01))
         temp = float(getattr(Config, "BIO_PROTO_TEMP", 0.10))
+        
+        # Adjust temperature for high-dimensional backbones (SigLIP/ResNet)
+        # Higher dimensions lead to lower dot-products, so we increase temp slightly.
+        backbone = Config.BACKBONE.lower().strip()
+        if "siglip" in backbone or "resnet" in backbone or "efficientnet" in backbone:
+            temp = max(temp, 0.15)
 
         # Local label index mapping  [0, n_active)
         label_to_pos = {int(lbl.item()): i for i, lbl in enumerate(active_labels)}
@@ -808,7 +1032,7 @@ class BioEpisodicGraph(nn.Module):
         # Warm-start from current prototype values
         proto_list = [self._get_proto(int(lbl.item())) for lbl in active_labels]
         proto_vars = torch.stack(proto_list).detach().clone().requires_grad_(True)
-        opt = torch.optim.Adam([proto_vars], lr=lr)
+        opt = torch.optim.Adam([proto_vars], lr=lr, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt, T_max=n_steps, eta_min=lr * 0.05
         )
@@ -823,20 +1047,199 @@ class BioEpisodicGraph(nn.Module):
                 proto_embed = F.normalize(proto_vars, p=2, dim=1)
 
             # Cosine-softmax cross-entropy: same objective as a normalized linear layer
+            # Label smoothing prevents the prototypes from being pushed too far by outlier nodes.
             logits = torch.matmul(nodes_embed, proto_embed.t()) / temp  # (N, C_active)
-            ce = F.cross_entropy(logits, node_label_pos, reduction="none")  # (N,)
+            ce = F.cross_entropy(logits, node_label_pos, reduction="none", label_smoothing=0.1)  # (N,)
             loss = (ce * weights).sum()
 
             loss.backward()
             opt.step()
             scheduler.step()
 
-        # Write back: unit-normalized to match cosine scoring at inference time
+        # Write back: unit-normalized to match cosine scoring at inference time.
+        # We use a backbone-aware momentum blend with the original NCM mean for stability.
+        # For DINOv2 (highly reliable), we trust the refinement more (0.8).
+        # For SigLIP/ResNet, we stay conservative (0.5) to prevent drift.
         normed_protos = F.normalize(proto_vars.detach(), p=2, dim=1)
+        
+        blend_weight = 0.5
+        backbone = Config.BACKBONE.lower().strip()
+        if "dinov2" in backbone:
+            blend_weight = 0.8
+            
         for i, lbl_t in enumerate(active_labels):
             lbl = int(lbl_t.item())
             count = max(1.0, self._proto_count[lbl])
-            self._proto_sum[lbl] = normed_protos[i] * count
+            
+            old_proto = self._get_proto(lbl)
+            refined_proto = F.normalize((1.0 - blend_weight) * old_proto + blend_weight * normed_protos[i], p=2, dim=0)
+            self._proto_sum[lbl] = refined_proto * count
+
+    def _nc_alignment_optimization(self, omega):
+        """
+        Pull-and-Push (PAP) Alignment Optimization with Task-Specific Reset.
+        
+        Following NCPTM-CIL, we reset the alignment layer every task and 
+        re-train it on the entire episodic memory to find a fresh, globally 
+        consistent mapping to the ETF.
+        """
+        active_labels = torch.unique(self.node_labels)
+        if active_labels.numel() < 2 or self.nodes.shape[0] < 2:
+            return
+
+        # 1. Task-Specific Reset: Initialize fresh parameters
+        # This prevents interference from previous task gradients.
+        d_in = self.input_dim
+        d_out = getattr(Config, "BIO_ALIGN_DIM", 256)
+        self.align_layer = AlignmentLayer(d_in, d_out).to(self.device)
+
+        # Ensure ETF exists
+        if self._etf_matrix is None or self._etf_matrix.shape[1] != d_out:
+            self._etf_matrix = self._generate_simplex_etf(Config.BIO_ETF_MAX_CLASSES, d_out)
+
+        # 2. Setup Optimization
+        lr = float(getattr(Config, "BIO_DISC_LR", 0.01))
+        n_steps = max(1, int(getattr(Config, "BIO_DISC_STEPS", 150)))
+        pap_weight = float(getattr(Config, "BIO_PAP_WEIGHT", 1.0))
+        
+        # Add Weight Decay to keep the mapping 'gentle'
+        opt = torch.optim.Adam(self.align_layer.parameters(), lr=lr, weight_decay=1e-4)
+        
+        classes = self.seen_classes
+        etf_vertices = self._etf_matrix[:len(classes)] # (C_seen, D_align)
+        label_to_idx = {lbl: i for i, lbl in enumerate(classes)}
+        
+        # 3. Training Data: Stochastic pseudo-sampling to prevent OOM
+        # New classes get full resolution, old classes get a stable summary.
+        nodes = self.nodes.detach()
+        node_labels = self.node_labels
+        n_pseudo_new = int(getattr(Config, "BIO_PSEUDO_SAMPLES", 512))
+        n_pseudo_old = 64 # Reduced footprint for historical classes
+        
+        classes = self.seen_classes
+        # Identify most recent task labels (last CPT labels)
+        CPT = getattr(Config, "CLASSES_PER_TASK", 10)
+        recent_threshold = max(classes) - CPT + 1 if classes else 0
+        
+        pseudo_feats_list = []
+        pseudo_labels_list = []
+        
+        for lbl in classes:
+            mu = self._get_proto(lbl)
+            count = max(1.0, self._proto_count[lbl])
+            std = torch.sqrt(self._proto_m2[lbl] / count + 1e-6) if lbl in self._proto_m2 else 0.02
+            
+            # Stochastic budget: more for recent, less for old
+            budget = n_pseudo_new if lbl >= recent_threshold else n_pseudo_old
+            
+            noise = torch.randn((budget, self.input_dim), device=self.device)
+            samples = mu.unsqueeze(0) + std.unsqueeze(0) * noise
+            pseudo_feats_list.append(samples)
+            pseudo_labels_list.append(torch.full((budget,), lbl, dtype=torch.long, device=self.device))
+            
+        pseudo_feats = torch.cat(pseudo_feats_list, dim=0)
+        pseudo_labels = torch.cat(pseudo_labels_list, dim=0)
+        train_feats = torch.cat([nodes, pseudo_feats], dim=0)
+        train_labels = torch.cat([node_labels, pseudo_labels], dim=0)
+        
+        # Free memory immediately
+        del pseudo_feats_list, pseudo_labels_list
+        
+        # ... rest of weights logic ...
+        node_weights = (omega.detach() + 1e-6)
+        node_weights = node_weights / (node_weights.sum() + 1e-6)
+        pseudo_weights = torch.full((len(pseudo_feats),), 1.0 / len(pseudo_feats), device=self.device)
+        all_weights = torch.cat([0.5 * node_weights, 0.5 * pseudo_weights], dim=0)
+        
+        label_to_idx = {lbl: i for i, lbl in enumerate(classes)}
+        target_indices = torch.tensor([label_to_idx[int(l.item())] for l in train_labels], device=self.device)
+        target_vertices = etf_vertices[target_indices]
+
+        # Reduce steps for speed 
+        n_steps_nc = 100 
+        self.align_layer.train()
+        for _ in range(n_steps_nc):
+            opt.zero_grad()
+            aligned_feats = self.align_layer(train_feats + 0.005 * torch.randn_like(train_feats)) 
+            dot_pos = (aligned_feats * target_vertices).sum(dim=1)
+            pull = torch.mean((dot_pos - 1.0)**2 * all_weights * len(train_feats))
+            sims = torch.matmul(aligned_feats, etf_vertices.t())
+            K = len(classes)
+            pos_indices = target_indices.unsqueeze(1)
+            pos_diff_sq = torch.gather((sims - (-1.0/(K-1.0)))**2, 1, pos_indices)
+            push = ((sims - (-1.0/(K-1.0)))**2).sum() - pos_diff_sq.sum()
+            push = push / (len(train_feats) * (K - 1.0))
+            loss = pull + pap_weight * push
+            loss.backward()
+            opt.step()
+        
+        self.align_layer.eval()
+        # Final cleanup
+        del train_feats, train_labels, target_vertices, target_indices, all_weights
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
+        elif hasattr(torch, "mps") and torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+
+    def _analytic_prototype_refinement(self):
+        """
+        Analytic Boundary Refinement (Closed-Form).
+        
+        Instead of SGD, we use Linear Discriminant Analysis (LDA) theory to 
+        analytically compute the optimal discriminative prototypes.
+        """
+        if self.nodes.shape[0] < 2:
+            return
+
+        # 1. Calculate Global Covariance of the episodic node bank
+        all_nodes = self.nodes.detach() # (N_total, D)
+        mu_global = all_nodes.mean(dim=0, keepdim=True)
+        centered_nodes = all_nodes - mu_global
+        
+        D = self.input_dim
+        ridge = 1e-3
+        sigma = torch.matmul(centered_nodes.t(), centered_nodes) / (all_nodes.shape[0] - 1)
+        sigma = sigma + ridge * torch.eye(D, device=self.device)
+        
+        # 2. Compute Precision Matrix
+        try:
+            precision = torch.inverse(sigma)
+        except:
+            precision = torch.linalg.pinv(sigma)
+
+        # 3. Refine Prototypes: mu_refined = Precision * mu_raw
+        classes = self.seen_classes
+        for lbl in classes:
+            raw_proto = self._get_proto(lbl)
+            refined_proto = torch.matmul(precision, raw_proto)
+            
+            count = max(1.0, self._proto_count[lbl])
+            # Use same blend logic as SGD for consistency if desired, or just overwrite
+            # Here we follow the blend logic for stability
+            blend_weight = 0.8 if "dinov2" in Config.BACKBONE.lower() else 0.5
+            old_proto = self._get_proto(lbl)
+            normed_refined = F.normalize(refined_proto, p=2, dim=0)
+            final_proto = F.normalize((1.0 - blend_weight) * old_proto + blend_weight * normed_refined, p=2, dim=0)
+            self._proto_sum[lbl] = final_proto * count
+
+    def _recursive_linear_alignment(self):
+        """
+        Closed-form Recursive Linear Alignment (RLA).
+        Solves P = (A + lambda*I)^-1 * B
+        """
+        A = self._RLA_A
+        B = self._RLA_B
+        
+        # Ridge regularization
+        ridge = 1e-3
+        D = A.shape[0]
+        reg_A = A + ridge * torch.eye(D, device=self.device)
+        
+        # Solve for P
+        try:
+            self._RLA_P = torch.linalg.solve(reg_A, B)
+        except:
+            # Fallback to pseudo-inverse
+            self._RLA_P = torch.matmul(torch.linalg.pinv(reg_A), B)
 
     def consolidate(self, lambda_val=0.1):
         """
@@ -845,7 +1248,7 @@ class BioEpisodicGraph(nn.Module):
         if len(self.nodes) == 0:
             return
 
-        # STEP 1: Score every node
+        # STEP 1: Score every node (Importance weights)
         # Ω(v) = Frequency × Strength × Consistency × Fidelity
         omega = (
             self._norm01(self.node_freq)
@@ -873,16 +1276,20 @@ class BioEpisodicGraph(nn.Module):
                 count = max(1.0, self._proto_count[int(lbl.item())])
                 self._proto_sum[int(lbl.item())] = new_proto * count
 
-        # STEP 3.5: Discriminative prototype optimization (cosine-softmax CE)
-        # Replaces the old margin-SGD loop.  See _discriminative_proto_optimization
-        # for the full rationale; the short version: this is equivalent to training
-        # a normalized linear classifier on the retained node bank, which is provably
-        # the right objective for closing the gap with a linear probe baseline.
+        # STEP 3.5: Discriminative prototype optimization
         if (
             getattr(Config, "BIO_USE_DISCRIM_CONSOLIDATION", True)
             and len(unique_labels) > 0
         ):
-            self._discriminative_proto_optimization(omega)
+            mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+            if mode == "analytic":
+                self._analytic_prototype_refinement()
+            elif mode == "analytic_etf":
+                self._recursive_linear_alignment()
+            elif mode == "nc_align":
+                self._nc_alignment_optimization(omega)
+            else:
+                self._discriminative_proto_optimization(omega)
 
         # STEP 3.6: Sleep-phase metric projection learning (hard-negative contrastive)
         if self.use_projection and len(unique_labels) > 0:
@@ -961,6 +1368,14 @@ class BioEpisodicGraph(nn.Module):
         post_priority = pre_priority[keep_mask]
         self._cap_nodes_per_class(node_priority=post_priority)
 
+        # Update manifold subspaces after pruning
+        rank = getattr(Config, "BIO_SUBSPACE_RANK", 10)
+        self._update_class_subspaces(k=rank)
+
+        # STEP 3.7: Equiangular Tight Frame (ETF) Anchoring
+        if getattr(Config, "BIO_USE_ETF", False):
+            self._apply_etf_anchoring()
+
         # RESET activation histories for next task
         self.node_freq = torch.zeros(len(self.nodes), device=self.device)
         self.node_strength = torch.zeros(len(self.nodes), device=self.device)
@@ -984,6 +1399,29 @@ class BioEpisodicGraph(nn.Module):
             
         C = max_cls + 1
         proto_logits = torch.full((batch_size, C), -1e4, device=self.device)
+
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        
+        if mode == "analytic_etf" and self._RLA_P is not None:
+            # RLA Path: Linear Projection -> ETF Matrix
+            aligned_feats = F.normalize(torch.matmul(batch_features, self._RLA_P), p=2, dim=1)
+            classes = self.seen_classes
+            etf_vertices = self._etf_matrix[:len(classes)] # (C_seen, D_align)
+            logits_seen = torch.matmul(aligned_feats, etf_vertices.t())
+            for i, cls_id in enumerate(classes):
+                proto_logits[:, cls_id] = logits_seen[:, i]
+            return proto_logits
+
+        if mode == "nc_align" and self._etf_matrix is not None:
+            # NC-Alignment Path: Features -> Alignment Layer -> ETF Matrix
+            aligned_feats = self.align_layer(batch_features) # (B, D_align)
+            classes = self.seen_classes
+            etf_vertices = self._etf_matrix[:len(classes)] # (C_seen, D_align)
+            logits_seen = torch.matmul(aligned_feats, etf_vertices.t())
+            
+            for i, cls_id in enumerate(classes):
+                proto_logits[:, cls_id] = logits_seen[:, i]
+            return proto_logits
 
         proto_tensor, classes = self._build_proto_tensor()
         
@@ -1018,14 +1456,73 @@ class BioEpisodicGraph(nn.Module):
             return torch.full((batch_size, 1), -1e4, device=self.device)
             
         C = max_cls + 1
-        graph_logits = torch.full((batch_size, C), -1e4, device=self.device)
+        device = self.device
+        batch_size = batch_features.shape[0]
+        
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
 
         if self.nodes.shape[0] > 0:
-            node_bank = F.normalize(self._project(self.nodes), p=2, dim=1)
-            logits_per_node = torch.matmul(batch_embed, node_bank.t())
-            for lbl in torch.unique(self.node_labels):
-                idxs = torch.where(self.node_labels == lbl)[0]
-                graph_logits[:, int(lbl.item())] = logits_per_node[:, idxs].max(dim=1).values
+            if mode == "nc_align":
+                query_embed = self.align_layer(batch_features) 
+                node_bank = self.align_layer(self.nodes)       
+            elif mode == "analytic_etf" and self._RLA_P is not None:
+                query_embed = F.normalize(torch.matmul(batch_features, self._RLA_P), p=2, dim=1)
+                node_bank = F.normalize(torch.matmul(self.nodes, self._RLA_P), p=2, dim=1)
+            else:
+                query_embed = F.normalize(self._project(batch_features), p=2, dim=1)
+                node_bank = F.normalize(self._project(self.nodes), p=2, dim=1)
+            
+            # (B, N_total_nodes)
+            logits_per_node = torch.matmul(query_embed, node_bank.t())
+
+            # ── Vectorized Log-Sum-Exp (Manifold Density) ────────────────────
+            density_temp = self.node_temp * 0.5
+            scaled_sims = logits_per_node / density_temp
+            
+            # Expand labels for batch: (B, N_nodes)
+            node_labels_expanded = self.node_labels.unsqueeze(0).expand(batch_size, -1)
+            
+            # Get Max per class for numerical stability in LSE
+            m = torch.full((batch_size, C), -1e4, device=device)
+            m.scatter_reduce_(1, node_labels_expanded, scaled_sims, reduce='amax', include_self=False)
+            
+            # sum(exp(x - m))
+            max_per_node = m.gather(1, node_labels_expanded)
+            exp_diff = torch.exp(scaled_sims - max_per_node)
+            
+            sum_exp = torch.zeros((batch_size, C), device=device)
+            sum_exp.scatter_add_(1, node_labels_expanded, exp_diff)
+            
+            # density_score = (m + log(sum_exp)) * temp
+            graph_logits = (m + torch.log(sum_exp + 1e-10)) * density_temp
+
+            # ── Vectorized Subspace Fit (Point-to-Manifold) ──────────────────
+            if self._class_subspaces:
+                classes_list = self.seen_classes
+                subspace_tensors = []
+                mu_tensors = []
+                for lbl in range(C):
+                    if lbl in self._class_subspaces:
+                        subspace_tensors.append(self._class_subspaces[lbl])
+                        if mode == "analytic_etf":
+                            label_to_idx = {l: i for i, l in enumerate(classes_list)}
+                            mu_tensors.append(self._etf_matrix[label_to_idx[lbl]])
+                        else:
+                            mu_tensors.append(self._get_proto(lbl))
+                    else:
+                        subspace_tensors.append(torch.zeros((self.input_dim, 1), device=device))
+                        mu_tensors.append(torch.zeros(self.input_dim, device=device))
+                
+                V_all = torch.stack(subspace_tensors)
+                Mu_all = torch.stack(mu_tensors)
+                
+                centered_queries = query_embed.unsqueeze(1) - Mu_all.unsqueeze(0)
+                proj_coeffs = torch.einsum('bcd,cdk->bck', centered_queries, V_all)
+                manifold_fit = torch.norm(proj_coeffs, dim=2)
+                
+                graph_logits = graph_logits + 0.5 * manifold_fit
+        else:
+            graph_logits = torch.full((batch_size, C), -1e4, device=self.device)
 
         return graph_logits
 

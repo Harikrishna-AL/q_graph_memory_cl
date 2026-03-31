@@ -110,22 +110,44 @@ def _run_eval_loop(model, features, labels, mask, name, mode="soft"):
 
 def predict_dual_system(model, feature_vector, alpha=0.6):
     """
-    True dual-system fusion — two genuinely different memory signals.
-
-    System 1 — Hippocampus (Episodic nodes): model.predict_node_logits()
-    System 2 — Cortex (Long-term prototypes): model.predict_proto_logits()
-
-    alpha=1.0  →  pure episodic  (System 1 only)
-    alpha=0.0  →  pure prototype (System 2 only)
-    alpha=0.5  →  equal blend
+    Bio-Inspired Entropy-Aware Fusion with Logit Calibration.
+    
+    1. Calibrate: Rescale System 1 (Density) and System 2 (Prototypes) 
+       logits to the same range using a robust Layer-Norm-like scaling.
+    2. Entropy-Aware: Calculate confusion of the prototype branch.
+    3. Fusion: Dynamic weighted blend.
     """
-    node_logits = model.predict_node_logits(feature_vector)
-    proto_logits = model.predict_proto_logits(feature_vector)
+    # Raw logit extraction
+    node_logits = model.predict_node_logits(feature_vector)   # (B, C)
+    proto_logits = model.predict_proto_logits(feature_vector) # (B, C)
 
-    prob_node = F.softmax(node_logits / model.node_temp, dim=1)
-    prob_proto = F.softmax(proto_logits / model.proto_temp, dim=1)
+    # Logit Calibration: Normalize both branches to zero-mean and unit-variance per sample.
+    # This prevents one system from "shouting over" the other due to logit-scale mismatch.
+    def calibrate(logits):
+        mu = logits.mean(dim=1, keepdim=True)
+        std = logits.std(dim=1, keepdim=True) + 1e-8
+        return (logits - mu) / std
 
-    final_probs = (alpha * prob_node) + ((1 - alpha) * prob_proto)
+    node_cal = calibrate(node_logits)
+    proto_cal = calibrate(proto_logits)
+
+    # Temperature-scaled probabilities for calibrated logits
+    # We use a standard temperature of 1.0 because the calibration std=1.0.
+    prob_node = F.softmax(node_cal, dim=1)
+    prob_proto = F.softmax(proto_cal, dim=1)
+
+    # 1. Calculate Prototype Branch Uncertainty (Normalised Entropy)
+    C = prob_proto.shape[1]
+    entropy = -torch.sum(prob_proto * torch.log(prob_proto + 1e-10), dim=1)
+    max_entropy = np.log(C)
+    uncertainty = (entropy / max_entropy).unsqueeze(1) # (B, 1)
+
+    # 2. Dynamic Alpha Shift: 
+    # For DINOv2, we stay conservative (alpha=0.2), shifting toward 0.5 under confusion.
+    # For SigLIP, we start at alpha=0.6, shifting toward 0.8.
+    dynamic_alpha = alpha + (min(0.8, alpha + 0.3) - alpha) * uncertainty 
+
+    final_probs = (dynamic_alpha * prob_node) + ((1 - dynamic_alpha) * prob_proto)
     return torch.argmax(final_probs, dim=1)
 
 

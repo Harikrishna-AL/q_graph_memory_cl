@@ -234,21 +234,44 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
 
     # 5. Tune alpha: episodic (System 1) vs prototype (System 2)
     selected_alpha = args.alpha
+    
+    # Apply custom node temperature if provided (e.g., from run_paper_story.py)
+    if hasattr(args, "bio_node_temp") and args.bio_node_temp is not None:
+        bio_model.node_temp = args.bio_node_temp
+    
+    if hasattr(args, "consolidation_mode") and args.consolidation_mode is not None:
+        Config.BIO_CONSOLIDATION_MODE = args.consolidation_mode
+    
+    if hasattr(args, "use_etf") and args.use_etf is not None:
+        Config.BIO_USE_ETF = args.use_etf
+    
+    if hasattr(args, "pap_weight") and args.pap_weight is not None:
+        Config.BIO_PAP_WEIGHT = args.pap_weight
+        
+    if hasattr(args, "align_dim") and args.align_dim is not None:
+        Config.BIO_ALIGN_DIM = args.align_dim
+
     if X_val is not None and len(X_val) > 0:
-        val_tensor = torch.tensor(X_val, dtype=torch.float32).to(Config.DEVICE)
-        val_labels = torch.tensor(y_val, dtype=torch.long).to(Config.DEVICE)
+        # Optimization: use a 10% subset of val for 10x faster tuning
+        val_size = len(X_val)
+        tune_size = max(100, val_size // 10)
+        tune_indices = np.random.choice(val_size, tune_size, replace=False)
+        X_tune = X_val[tune_indices]
+        y_tune = y_val[tune_indices]
+        
+        val_tensor = torch.tensor(X_tune, dtype=torch.float32).to(Config.DEVICE)
+        val_labels = torch.tensor(y_tune, dtype=torch.long).to(Config.DEVICE)
         alpha_grid = [0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0]
         best_alpha, best_val_acc = selected_alpha, -1.0
         for alpha in alpha_grid:
             preds = predict_dual_system(bio_model, val_tensor, alpha=alpha)
             val_acc = (preds == val_labels).float().mean().item()
-            print(f"   🔎 Val alpha={alpha:.2f} -> acc={val_acc * 100:.2f}%")
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
                 best_alpha = alpha
         selected_alpha = best_alpha
         print(
-            f"   ✅ Selected alpha: {selected_alpha:.2f} | Val Acc: {best_val_acc * 100:.2f}%"
+            f"   ✅ Selected alpha: {selected_alpha:.2f} (Tuned on {tune_size} val samples)"
         )
     else:
         print(f"   ⚠️  No validation split available; using alpha={selected_alpha:.2f}")
@@ -481,7 +504,37 @@ def main():
         "--bio_disc_neg_weight",
         type=float,
         default=1.0,
-        help="(legacy, unused) neg-weight that was used by the old margin-SGD step",
+        help="(legacy, unused) margin that was used by the old margin-SGD step",
+    )
+    parser.add_argument(
+        "--consolidation_mode",
+        type=str,
+        default="sgd",
+        choices=["sgd", "analytic", "nc_align", "analytic_etf"],
+        help="Mode for sleep-phase refinement: 'sgd', 'analytic' (LDA), 'nc_align' (PAP Loss), or 'analytic_etf' (RLA)"
+    )
+    parser.add_argument(
+        "--pap_weight",
+        type=float,
+        default=1.0,
+        help="Weight for the Push term in nc_align mode"
+    )
+    parser.add_argument(
+        "--align_dim",
+        type=int,
+        default=256,
+        help="Dimensionality of the alignment layer output"
+    )
+    parser.add_argument(
+        "--subspace_rank",
+        type=int,
+        default=10,
+        help="Number of principal components to keep per class manifold"
+    )
+    parser.add_argument(
+        "--use_etf",
+        action="store_true",
+        help="Anchor prototypes to a fixed Equiangular Tight Frame (ETF)"
     )
     parser.add_argument(
         "--bio-mahalanobis",
@@ -573,6 +626,11 @@ def main():
     Config.BIO_MAX_NODES_PER_CLASS = args.bio_max_nodes_per_class
     Config.BIO_KMEANS_PER_CLASS = args.bio_kmeans_per_class
     Config.BIO_USE_DISCRIM_CONSOLIDATION = args.bio_use_discrim_consolidation
+    Config.BIO_CONSOLIDATION_MODE = args.consolidation_mode
+    Config.BIO_PAP_WEIGHT = args.pap_weight
+    Config.BIO_ALIGN_DIM = args.align_dim
+    Config.BIO_SUBSPACE_RANK = args.subspace_rank
+    Config.BIO_USE_ETF = args.use_etf
     Config.BIO_DISC_STEPS = args.bio_disc_steps
     Config.BIO_DISC_LR = args.bio_disc_lr
     Config.BIO_DISC_MARGIN = args.bio_disc_margin

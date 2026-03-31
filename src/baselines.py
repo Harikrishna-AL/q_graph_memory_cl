@@ -387,3 +387,67 @@ def run_rehearsal_mlp_baseline(
     print(f"   🏆 Rehearsal MLP Accuracy:  {acc * 100:.2f}%  |  Memory: {mem:.2f} MB")
 
     return {"accuracy": acc, "memory_mb": mem}
+
+
+# ==============================================================================
+# NODE-BANK REPLAY BUFFER  (Experience Replay on compressed K-means nodes)
+# ==============================================================================
+
+
+class NodeBankReplayBuffer:
+    """
+    Experience Replay with an MLP classifier, but using compressed K-means
+    nodes from BioEpisodicGraph as exemplars instead of raw features.
+
+    After each task:
+        1. BioEpisodicGraph extracts K-means nodes from the new data
+        2. The node bank (all accumulated nodes) is used as training data
+        3. An MLP is fine-tuned on the full node bank
+
+    Memory: ~10x less than RehearsalMLPBuffer because nodes are compressed
+    representatives, not raw features.
+    """
+
+    def __init__(self, input_dim: int, num_classes: int, device, lr: float = 1e-3, weight_decay: float = 1e-4):
+        self.device = device
+        self.input_dim = input_dim
+        self.num_classes = num_classes
+
+        # Use purely Linear layer (Logistic Regression) to avoid catastrophic 
+        # overfitting on the tiny node bank (~1600 samples vs 512-hidden MLP)
+        self.model = nn.Linear(input_dim, num_classes).to(device)
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.criterion = nn.CrossEntropyLoss()
+
+    def update_from_nodes(self, nodes: torch.Tensor, node_labels: torch.Tensor,
+                          finetune_epochs: int = 20, batch_size: int = 256) -> None:
+        """
+        Fine-tune the MLP on the FULL node bank from BioEpisodicGraph.
+        nodes: (N_nodes, D) tensor of all accumulated K-means centroids
+        node_labels: (N_nodes,) tensor of class labels for each node
+        """
+        if nodes.shape[0] == 0:
+            return
+
+        X = nodes.to(self.device).float()
+        y = node_labels.to(self.device).long()
+
+        self.model.train()
+        n = len(X)
+        for epoch in range(finetune_epochs):
+            perm = torch.randperm(n, device=self.device)
+            epoch_loss = 0.0
+            for start in range(0, n, batch_size):
+                idx = perm[start: start + batch_size]
+                self.optimizer.zero_grad()
+                loss = self.criterion(self.model(X[idx]), y[idx])
+                loss.backward()
+                self.optimizer.step()
+                epoch_loss += loss.item()
+        self.model.eval()
+
+    def predict(self, queries: np.ndarray) -> np.ndarray:
+        q = torch.tensor(queries, dtype=torch.float32).to(self.device)
+        with torch.no_grad():
+            logits = self.model(q)
+        return torch.argmax(logits, dim=1).cpu().numpy()

@@ -178,22 +178,39 @@ def get_dataloader(dataset_name="tinyimagenet", use_train_set=True):
     """
     print(f"🔄 Preparing Dataset: {dataset_name.upper()}...")
 
-    # Ensure correct resolution based on backbone
-    is_siglip = "siglip" in Config.BACKBONE.lower()
-    img_size = 384 if is_siglip else 224
+    # ── Backbone-specific preprocessing ──────────────────────────────────────
+    # CRITICAL: Each backbone family expects a DIFFERENT input distribution.
+    # Applying the wrong normalization causes catastrophic feature collapse.
+    backbone_lower = Config.BACKBONE.lower()
 
-    mean = [0.5, 0.5, 0.5] if is_siglip else [0.485, 0.456, 0.406]
-    std = [0.5, 0.5, 0.5] if is_siglip else [0.229, 0.224, 0.225]
-    interp = transforms.InterpolationMode.BICUBIC if is_siglip else transforms.InterpolationMode.BILINEAR
+    if "siglip" in backbone_lower:
+        # SigLIP: trained on WebLI with [-1, 1] range, bicubic, 384px
+        img_size, interp = 384, transforms.InterpolationMode.BICUBIC
+        mean, std = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+    elif "clip" in backbone_lower:
+        # OpenAI CLIP: uses its own specific normalization values
+        img_size, interp = 224, transforms.InterpolationMode.BICUBIC
+        mean = [0.48145466, 0.4578275, 0.40821073]
+        std  = [0.26862954, 0.26130258, 0.27577711]
+    elif "simclr" in backbone_lower or "lightly" in backbone_lower:
+        # SimCLR (Lightly): NO normalization, just raw [0, 1] floats
+        img_size, interp = 224, transforms.InterpolationMode.BILINEAR
+        mean, std = None, None
+    else:
+        # DINOv2, supervised ResNet, EfficientNet: standard ImageNet normalization
+        img_size, interp = 224, transforms.InterpolationMode.BILINEAR
+        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 
-    # Standard Transform for Models
-    transform = transforms.Compose(
-        [
-            transforms.Resize((img_size, img_size), interpolation=interp),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ]
-    )
+    # Build the transform pipeline
+    transform_list = [
+        transforms.Resize((img_size, img_size), interpolation=interp),
+        transforms.ToTensor(),
+    ]
+    if mean is not None and std is not None:
+        transform_list.append(transforms.Normalize(mean=mean, std=std))
+
+    transform = transforms.Compose(transform_list)
+    print(f"   📐 Preprocessing: {img_size}px, norm={'None' if mean is None else 'custom'}")
 
     if dataset_name.lower() == "cifar100":
         root = os.path.join(Config.DATA_ROOT, "cifar100")
