@@ -119,9 +119,11 @@ def setup_objectnet():
 
     zip_path = os.path.join(Config.DATA_ROOT, "objectnet-1.0.zip")
     if os.path.exists(zip_path):
-        print("📦 Extracting ObjectNet zip...")
+        print("📦 Extracting ObjectNet zip (password protected)...")
+        # ObjectNet requires a specific password to ensure users read the license.
+        password = b"objectnetisatestset"
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(dataset_root)
+            zip_ref.extractall(dataset_root, pwd=password)
         return dataset_root
         
     raise FileNotFoundError("ObjectNet not found. Cannot auto-download. Please see instructions.")
