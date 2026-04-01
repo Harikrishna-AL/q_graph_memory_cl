@@ -264,6 +264,12 @@ def load_backbone():
 
     model.to(Config.DEVICE)
     model.eval()
+
+    # Enable Multi-GPU Parallelism if more than one GPU is detected
+    if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        print(f"🚀 Detected {torch.cuda.device_count()} GPUs. Using DataParallel.")
+        model = torch.nn.DataParallel(model)
+
     return model
 
 
