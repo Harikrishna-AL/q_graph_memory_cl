@@ -283,11 +283,15 @@ def get_dataloader(dataset_name="tinyimagenet", use_train_set=True):
 
     elif dataset_name.lower() == "objectnet":
         root = setup_objectnet()
+        # ObjectNet often has a nested 'images' folder
         img_folder = os.path.join(root, "images") if os.path.exists(os.path.join(root, "images")) else root
         dataset = ImageFolder(root=img_folder, transform=transform)
+        
+        # ObjectNet contains 313 classes. 
+        # We use 15 tasks of 20 classes each (300 classes total).
         Config.CLASSES_PER_TASK = 20
-        Config.N_TASKS = 15 # 300 classes
-        print("ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes (first 300 classes). Train/test split handled in main.py.")
+        Config.N_TASKS = 15
+        print(f"ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.")
 
     else:
         raise ValueError(

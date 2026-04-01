@@ -44,8 +44,8 @@ def parse_args():
 
     parser.add_argument("--use_etf", action="store_true", help="Anchor prototypes to a fixed Equiangular Tight Frame (ETF)")
 
-    parser.add_argument("--stages", nargs="+", type=str, default=["1", "2", "2b", "3", "4", "5", "5b"], 
-                        help="Stages to run: 1 (NCM), 2 (Replay), 2b (ER+MLP), 3 (Nodes), 4 (Sweeps), 5 (TQM Full), 5b (TQM+Linear)")
+    parser.add_argument("--stages", nargs="+", type=str, default=["0", "1", "2", "2b", "3", "4", "5", "5b"], 
+                        help="Stages to run: 0 (Vanilla NCM), 1 (Standard NCM), 2 (Replay), 2b (ER+MLP), 3 (Nodes), 4 (Sweeps), 5 (TQM Full), 5b (TQM+Linear)")
     
     return parser.parse_args()
 
@@ -98,6 +98,8 @@ def main():
         Config.FEATURE_DIM = actual_dim
     
     # Create CIL Stream splits
+    # Reload dataloader to ensure Config.CLASSES_PER_TASK and N_TASKS are updated for ObjectNet/ImageNet-R
+    _, _ = get_dataloader(args.dataset, use_train_set=True)
     N_TASKS = Config.N_TASKS
     CPT = Config.CLASSES_PER_TASK
     
@@ -143,6 +145,32 @@ def main():
         aia = compute_average_accuracy(hist_np)
         print(f"✅ [{name}] AIA: {aia*100:.2f}% | Mem: {memory_usage_mb:.2f} MB")
         return aia, memory_usage_mb
+
+    # STAGE 0: Vanilla NCM (No normalization, just raw Euclidean distance to mean)
+    if "0" in args.stages:
+        ncm_0_proto_sum, ncm_0_proto_count = {}, {}
+        def train_s0(tid, x, y):
+            for i in range(len(x)):
+                lbl = int(y[i])
+                if lbl not in ncm_0_proto_sum:
+                    ncm_0_proto_sum[lbl] = np.zeros(Config.FEATURE_DIM)
+                    ncm_0_proto_count[lbl] = 0
+                ncm_0_proto_sum[lbl] += x[i]
+                ncm_0_proto_count[lbl] += 1
+            return (len(ncm_0_proto_sum) * Config.FEATURE_DIM * 4) / (1024**2)
+        def eval_s0(tid, x, y):
+            classes_seen = sorted(ncm_0_proto_sum.keys())
+            protos = np.stack([ncm_0_proto_sum[c]/ncm_0_proto_count[c] for c in classes_seen])
+            # Euclidean distance
+            dists = np.linalg.norm(x[:, np.newaxis, :] - protos, axis=2)
+            preds = np.array([classes_seen[i] for i in np.argmin(dists, axis=1)])
+            accs = []
+            for t in range(tid + 1):
+                mask = (y >= t*CPT) & (y < (t+1)*CPT)
+                accs.append(np.mean(preds[mask] == y[mask]) if mask.any() else 0.0)
+            return accs
+        res = run_cil_stream("0. Vanilla NCM", eval_s0, train_s0)
+        results_summary["0"] = res
 
     # STAGE 1
     if "1" in args.stages:
@@ -255,11 +283,11 @@ def main():
     print("\n==================================================")
     print(" 🎯 FINAL STORYLINE RESULTS ")
     print("==================================================")
-    for k in ["1", "2", "2b", "3", "4", "5", "5b"]:
+    for k in ["0", "1", "2", "2b", "3", "4", "5", "5b"]:
         if k in results_summary:
-            label = {"1":"NCM", "2":"Replay", "2b":"ER+MLP", "3":"Nodes", "4":"Sweeps", "5":"TQM Full", "5b":"TQM+Linear"}[k]
+            label = {"0":"Vanilla NCM", "1":"Standard NCM", "2":"Replay", "2b":"ER+MLP", "3":"Nodes", "4":"Sweeps", "5":"TQM Full", "5b":"TQM+Linear"}[k]
             aia, mem = results_summary[k][:2]
-            print(f"{k}. {label:<20} | AIA: {aia*100:.2f}% | Mem: {mem:.1f} MB" + (f" [F={results_summary[k][2]:.2f}]" if k=="4" else ""))
+            print(f"{k}. {label:<20} | AIA: {aia*100:.1f}% | Mem: {mem:.1f} MB" + (f" [F={results_summary[k][2]:.2f}]" if k=="4" else ""))
     print("==================================================")
 
 if __name__ == "__main__":

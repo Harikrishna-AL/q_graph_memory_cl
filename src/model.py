@@ -1496,22 +1496,34 @@ class BioEpisodicGraph(nn.Module):
             # density_score = (m + log(sum_exp)) * temp
             graph_logits = (m + torch.log(sum_exp + 1e-10)) * density_temp
 
-            # ── Vectorized Subspace Fit (Point-to-Manifold) ──────────────────
             if self._class_subspaces:
                 classes_list = self.seen_classes
                 subspace_tensors = []
                 mu_tensors = []
+                
+                # Identify active dimension and target rank
+                d_align = getattr(Config, "BIO_ALIGN_DIM", 256)
+                curr_dim = d_align if mode in ["nc_align", "analytic_etf"] else self.input_dim
+                target_rank = getattr(Config, "BIO_SUBSPACE_RANK", 10)
+                
                 for lbl in range(C):
                     if lbl in self._class_subspaces:
-                        subspace_tensors.append(self._class_subspaces[lbl])
+                        V = self._class_subspaces[lbl] # (D, k_eff)
+                        # Padding: ensure all subspaces have shape (curr_dim, target_rank)
+                        if V.shape[1] < target_rank:
+                            padding = torch.zeros((curr_dim, target_rank - V.shape[1]), device=device)
+                            V = torch.cat([V, padding], dim=1)
+                        subspace_tensors.append(V)
+                        
                         if mode == "analytic_etf":
                             label_to_idx = {l: i for i, l in enumerate(classes_list)}
                             mu_tensors.append(self._etf_matrix[label_to_idx[lbl]])
                         else:
                             mu_tensors.append(self._get_proto(lbl))
                     else:
-                        subspace_tensors.append(torch.zeros((self.input_dim, 1), device=device))
-                        mu_tensors.append(torch.zeros(self.input_dim, device=device))
+                        # Dummy for unseen/unstable classes
+                        subspace_tensors.append(torch.zeros((curr_dim, target_rank), device=device))
+                        mu_tensors.append(torch.zeros(curr_dim, device=device))
                 
                 V_all = torch.stack(subspace_tensors)
                 Mu_all = torch.stack(mu_tensors)
