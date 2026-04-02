@@ -282,62 +282,77 @@ def load_dino():
 def extract_features(backbone, dataloader):
     """Run `backbone` over `dataloader` and return L2-normalised features + labels."""
     print("🔍 Extracting Features (this may take a moment)...")
+    
+    # Enable loading of truncated/corrupted images (common in massive datasets)
+    from PIL import ImageFile
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    
     all_feats, all_lbls = [], []
     with torch.no_grad():
-        for batch in dataloader:
-            if isinstance(batch, list) and len(batch) > 0 and isinstance(batch[0], (tuple, list)) and len(batch[0]) >= 2:
-                # default_collate completely aborted; batch is `[(img, lbl, ...), (img, lbl, ...)]`
-                imgs = [item[0] for item in batch]
-                lbls = [item[1] for item in batch]
-            elif isinstance(batch, dict):
-                imgs = batch.get("image", batch.get("images", batch.get("img", None)))
-                lbls = batch.get("label", batch.get("labels", batch.get("target", None)))
-            else:
-                imgs, lbls = batch[0], batch[1]
+        for batch_idx, batch in enumerate(dataloader):
+            try:
+                if isinstance(batch, list) and len(batch) > 0 and isinstance(batch[0], (tuple, list)) and len(batch[0]) >= 2:
+                    # default_collate completely aborted; batch is `[(img, lbl, ...), (img, lbl, ...)]`
+                    imgs = [item[0] for item in batch]
+                    lbls = [item[1] for item in batch]
+                elif isinstance(batch, dict):
+                    imgs = batch.get("image", batch.get("images", batch.get("img", None)))
+                    lbls = batch.get("label", batch.get("labels", batch.get("target", None)))
+                else:
+                    imgs, lbls = batch[0], batch[1]
+                    
+                # Deep unpack and resolve tuples/lists
+                if isinstance(imgs, (tuple, list)):
+                    if len(imgs) > 0 and isinstance(imgs[0], torch.Tensor):
+                        # Filter out any non-tensors just in case!
+                        imgs = torch.stack([x for x in imgs if isinstance(x, torch.Tensor)])
+                    elif len(imgs) > 0:
+                        imgs = imgs[0]
                 
-            # Deep unpack and resolve tuples/lists
-            if isinstance(imgs, (tuple, list)):
-                if len(imgs) > 0 and isinstance(imgs[0], torch.Tensor):
-                    # Filter out any non-tensors just in case!
-                    imgs = torch.stack([x for x in imgs if isinstance(x, torch.Tensor)])
-                elif len(imgs) > 0:
-                    imgs = imgs[0]
-            
-            if isinstance(lbls, (tuple, list)):
-                if len(lbls) > 0 and isinstance(lbls[0], torch.Tensor):
-                    lbls = torch.stack([x for x in lbls if isinstance(x, torch.Tensor)])
-                elif len(lbls) > 0:
-                    lbls = torch.tensor(lbls)
-            
-            if not isinstance(imgs, torch.Tensor):
-                raise ValueError(f"CRITICAL ERROR: 'imgs' is of type {type(imgs)} inside subset DataLoader instead of a Tensor. Batch structure: {type(batch)}")
+                if isinstance(lbls, (tuple, list)):
+                    if len(lbls) > 0 and isinstance(lbls[0], torch.Tensor):
+                        lbls = torch.stack([x for x in lbls if isinstance(x, torch.Tensor)])
+                    elif len(lbls) > 0:
+                        lbls = torch.tensor(lbls)
+                
+                if not isinstance(imgs, torch.Tensor):
+                    print(f"⚠️ Skipping batch {batch_idx}: 'imgs' is not a Tensor")
+                    continue
 
-            imgs = imgs.to(Config.DEVICE)
-            
-            # 🔥 Accelerate throughput by 3-4x using Mixed Precision (GPU Tensor Cores)
-            # EXCEPTION: We explicitly disable FP16 for ResNet50 (especially Lightly/SimCLR). 
-            # Their contrastive temperature-scaled Batch-Norms sporadically exceed 65504 locally, triggering catastrophic `NaN` overflows in Tensor Cores!
-            device_type = "cuda" if torch.cuda.is_available() else "cpu"
-            use_amp = device_type == "cuda" and ("dinov2" in Config.BACKBONE.lower() or "siglip" in Config.BACKBONE.lower())
-            
-            if use_amp:
-                with torch.autocast(device_type="cuda"):
+                imgs = imgs.to(Config.DEVICE)
+                
+                # 🔥 Accelerate throughput by 3-4x using Mixed Precision (GPU Tensor Cores)
+                device_type = "cuda" if torch.cuda.is_available() else "cpu"
+                use_amp = device_type == "cuda" and ("dinov2" in Config.BACKBONE.lower() or "siglip" in Config.BACKBONE.lower())
+                
+                if use_amp:
+                    with torch.autocast(device_type="cuda"):
+                        f = backbone(imgs)
+                else:
                     f = backbone(imgs)
-            else:
-                f = backbone(imgs)
-            
-            f = f.float().cpu().numpy()
-            
-            # L2 Normalize natively with a pure zero-division protection just in case a crop is completely black
-            f_norm = np.linalg.norm(f, axis=1, keepdims=True)
-            f_norm[f_norm == 0] = 1e-8 # mathematically secure the normalization scalar
-            f = f / f_norm
-            
-            all_feats.append(f)
-            if torch.is_tensor(lbls):
-                all_lbls.append(lbls.cpu().numpy())
-            else:
-                all_lbls.append(np.array(lbls))
+                
+                f = f.float().cpu().numpy()
+                
+                # L2 Normalize natively with a pure zero-division protection just in case a crop is completely black
+                f_norm = np.linalg.norm(f, axis=1, keepdims=True)
+                f_norm[f_norm == 0] = 1e-8 # mathematically secure the normalization scalar
+                f = f / f_norm
+                
+                all_feats.append(f)
+                if torch.is_tensor(lbls):
+                    all_lbls.append(lbls.cpu().numpy())
+                else:
+                    all_lbls.append(np.array(lbls))
+                    
+                if (batch_idx + 1) % 100 == 0:
+                    print(f"   Processed batch {batch_idx + 1}...")
+                    
+            except (OSError, RuntimeError) as e:
+                print(f"⚠️  Skipping corrupted batch {batch_idx}: {e}")
+                continue
+
+    if not all_feats:
+        raise ValueError("No features were extracted. Check your dataset and backbone.")
 
     features = np.concatenate(all_feats)
     labels = np.concatenate(all_lbls)
