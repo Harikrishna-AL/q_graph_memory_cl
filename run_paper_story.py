@@ -103,6 +103,14 @@ def main():
     N_TASKS = Config.N_TASKS
     CPT = Config.CLASSES_PER_TASK
     
+    # ── LABEL REMAPPING (The Fix) ──────────────────────────────────────────
+    # Ensure labels are a dense range [0, total_classes)
+    unique_labels = np.unique(labels)
+    print(f"📊 Dataset unique labels found: {len(unique_labels)}")
+    label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
+    labels = np.array([label_map[l] for l in labels])
+    # ────────────────────────────────────────────────────────────────────────
+    
     train_indices = []
     test_indices = []
     
@@ -111,6 +119,13 @@ def main():
         end_cls = (task_id + 1) * CPT
         task_mask = (labels >= start_cls) & (labels < end_cls)
         task_idxs = np.where(task_mask)[0]
+        
+        print(f"   Task {task_id+1}: {len(task_idxs)} samples found for classes {start_cls}-{end_cls-1}")
+        
+        if len(task_idxs) == 0:
+            print(f"⚠️  WARNING: Task {task_id+1} is empty! Check dataset.")
+            continue
+
         np.random.shuffle(task_idxs)
         split_point = int(len(task_idxs) * 0.8)
         train_indices.extend(task_idxs[:split_point])
