@@ -356,6 +356,12 @@ def extract_features(backbone, dataloader):
 
     features = np.concatenate(all_feats)
     labels = np.concatenate(all_lbls)
+    
+    unique_found = len(np.unique(labels))
+    print(f"✅ Extraction Complete: {len(features)} samples, {unique_found} unique classes found.")
+    if unique_found <= 1 and len(features) > 100:
+        print("⚠️  CRITICAL WARNING: Only one class found in extraction! This usually means the Dataloader or Dataset folder structure is incorrect.")
+        
     return features, labels
 
 

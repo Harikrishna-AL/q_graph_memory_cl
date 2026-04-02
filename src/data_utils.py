@@ -108,9 +108,9 @@ def setup_objectnet():
     Users must download ObjectNet.zip manually due to license walls.
     """
     os.makedirs(Config.DATA_ROOT, exist_ok=True)
-    dataset_root = os.path.join(Config.DATA_ROOT, "objectnet")
+    dataset_root = os.path.join(Config.DATA_ROOT, "objectnet/objectnet-1.0")
 
-    if os.path.exists(dataset_root) and os.path.exists(os.path.join(dataset_root, "objectnet-1.0/images")):
+    if os.path.exists(dataset_root) and os.path.exists(os.path.join(dataset_root, "images")):
         print(f"✅ ObjectNet found at {dataset_root}")
         return dataset_root
 
