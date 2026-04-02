@@ -110,7 +110,7 @@ def setup_objectnet():
     os.makedirs(Config.DATA_ROOT, exist_ok=True)
     dataset_root = os.path.join(Config.DATA_ROOT, "objectnet")
 
-    if os.path.exists(dataset_root) and os.path.exists(os.path.join(dataset_root, "images")):
+    if os.path.exists(dataset_root) and os.path.exists(os.path.join(dataset_root, "objectnet-1.0/images")):
         print(f"✅ ObjectNet found at {dataset_root}")
         return dataset_root
 
