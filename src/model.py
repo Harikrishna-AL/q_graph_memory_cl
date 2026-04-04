@@ -642,23 +642,30 @@ class BioEpisodicGraph(nn.Module):
             return
 
         # 1. Build current prototype matrix
-        protos = torch.stack([self._get_proto(c) for c in classes]) # (C_seen, D)
+        protos_raw = torch.stack([self._get_proto(c) for c in classes]) # (C_seen, D_backbone)
         
-        # 2. Slice the ETF matrix to match the current number of classes
-        # (For progressive learning, we always match the seen classes to the best 'slots')
-        etf_vertices = self._etf_matrix[:len(classes)] # (C_seen, D)
+        # 2. Project into Alignment Space for matching
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        if mode == "nc_align":
+            protos = self.align_layer(protos_raw)
+        elif mode == "analytic_etf" and self._RLA_P is not None:
+            protos = F.normalize(torch.matmul(protos_raw, self._RLA_P), p=2, dim=1)
+        else:
+            protos = F.normalize(self._project(protos_raw), p=2, dim=1)
+            
+        # 3. Slice the ETF matrix to match the current number of classes
+        # Multi-mode aware: we match to the first mode vertex of each class
+        modes = getattr(Config, "BIO_ETF_MODES", 4)
+        etf_vertices = self._etf_matrix[::modes][:len(classes)] # (C_seen, D_align)
 
-        # 3. Compute cost matrix (Distance between prototypes and ETF vertices)
-        # We use cosine distance (1 - similarity)
+        # 4. Compute cost matrix (Distance between prototypes and ETF vertices)
         dist_matrix = 1.0 - torch.matmul(protos, etf_vertices.t()) # (C_seen, C_seen)
 
-        # 4. Hungarian Matching
+        # 5. Hungarian Matching
         from scipy.optimize import linear_sum_assignment
         row_ind, col_ind = linear_sum_assignment(dist_matrix.cpu().numpy())
 
-        # 5. Anchor: Move prototypes to their assigned ETF vertices
-        # In the 'Ideal' Neural Collapse state (NC2), the prototypes ARE the ETF vertices.
-        # For DINOv2, we trust the features enough to do Hard Anchoring (1.0).
+        # 6. Anchor: Move prototypes to their assigned ETF vertices
         backbone = Config.BACKBONE.lower().strip()
         blend_weight = 1.0 if "dinov2" in backbone else 0.8
         
@@ -666,14 +673,19 @@ class BioEpisodicGraph(nn.Module):
             lbl = classes[class_idx]
             target_vertex = etf_vertices[col_ind[i]]
             
-            if blend_weight >= 1.0:
-                refined_proto = target_vertex
+            if mode in ["nc_align", "analytic_etf"]:
+                # In aligned modes, we don't write back to _proto_sum (D_backbone)
+                # because System 2 inference uses the ETF matrix directly.
+                pass
             else:
-                old_proto = self._get_proto(lbl)
-                refined_proto = F.normalize((1.0 - blend_weight) * old_proto + blend_weight * target_vertex, p=2, dim=0)
-            
-            count = max(1.0, self._proto_count[lbl])
-            self._proto_sum[lbl] = refined_proto * count
+                if blend_weight >= 1.0:
+                    refined_proto = target_vertex
+                else:
+                    old_proto = self._get_proto(lbl)
+                    refined_proto = F.normalize((1.0 - blend_weight) * old_proto + blend_weight * target_vertex, p=2, dim=0)
+                
+                count = max(1.0, self._proto_count[lbl])
+                self._proto_sum[lbl] = refined_proto * count
 
     def _update_class_subspaces(self, k=10):
         """
