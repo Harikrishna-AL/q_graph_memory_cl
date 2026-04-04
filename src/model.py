@@ -19,7 +19,9 @@ CACHE_DIR = "cache"
 _BACKBONE_DIMS = {
     "dinov2": 384,       # ViT-S/14
     "dinov2_giant": 1536,# ViT-g/14
+    "dinov3": 1024,      # dinov3_vitl16 (Large)
     "siglip": 1152,      # vit_so400m_patch14_siglip_384
+    "siglip2": 1152,     # ViT-SO400M-14-SigLIP2
     "resnet18": 512,
     "resnet34": 512,
     "resnet50": 2048,
@@ -194,6 +196,9 @@ def load_backbone():
     elif backbone_name == "dinov2_giant":
         print(f"🦖 Loading DINOv2 Giant (dinov2_vitg14_reg, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitg14_reg')
+    elif backbone_name == "dinov3":
+        print(f"🦖 Loading DINOv3 Large (dinov3_vitl16, dim={Config.FEATURE_DIM})...")
+        model = torch.hub.load('facebookresearch/dinov3', 'dinov3_vitl16')
     elif backbone_name == "siglip":
         try:
             import timm
@@ -201,6 +206,14 @@ def load_backbone():
             raise ImportError("timm is required for SigLIP models. Run: pip install timm")
         print(f"👀 Loading SigLIP SO400m (dim={Config.FEATURE_DIM})...")
         model = timm.create_model('vit_so400m_patch14_siglip_384.webli', pretrained=True, num_classes=0)
+    elif backbone_name == "siglip2":
+        try:
+            import timm
+        except ImportError:
+            raise ImportError("timm is required for SigLIP 2 models. Run: pip install timm")
+        print(f"👀 Loading SigLIP 2 SO400m (dim={Config.FEATURE_DIM})...")
+        # Accessing SigLIP 2 via timm's HF Hub integration
+        model = timm.create_model('hf-hub:timm/ViT-SO400M-14-SigLIP2', pretrained=True, num_classes=0)
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
