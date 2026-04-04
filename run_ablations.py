@@ -18,6 +18,18 @@ def run_experiment(backbone, dataset, **overrides):
     if features is None:
         return 0.0, 0.0
         
+    # Default overrides to ensure all needed keys exist
+    defaults = {
+        "alpha": 0.5,
+        "bio_use_projection": True,
+        "bio_use_mahalanobis": True,
+        "bio_use_discrim_consolidation": True,
+        "consolidation_mode": "sgd",
+        "bio_max_nodes_per_class": 64
+    }
+    # Merge defaults with user overrides
+    final_overrides = {**defaults, **overrides}
+    
     args = argparse.Namespace(
         dataset=dataset,
         backbone=backbone,
@@ -26,8 +38,7 @@ def run_experiment(backbone, dataset, **overrides):
         shuffle_stream=False,
         consolidate_every=1,
         consolidation_lambda=0.1,
-        alpha=0.5,
-        **overrides
+        **final_overrides
     )
     
     aia, mem = run_single_experiment(42, features, labels, args, run_benchmarks=False)
