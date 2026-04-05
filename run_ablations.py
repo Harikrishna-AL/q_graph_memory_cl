@@ -117,8 +117,9 @@ def main():
     print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
     results["k_sweep"] = []
     for k in [1, 16, 32, 64, 128, 256]:
-        # Overriding the uppercase BIO_MAX_NODES_PER_CLASS
-        aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k)
+        # CRITICAL: We force alpha=0.5 to prove System 1 resolution helps.
+        # If we let it tune to 0, we see no difference.
+        aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem})
 
     # Final Save

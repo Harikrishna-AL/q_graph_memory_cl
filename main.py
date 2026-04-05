@@ -233,6 +233,8 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     print(f"   🧠 Bio-Graph Memory Footprint: {bio_mem:.2f} MB")
 
     # 5. Tune alpha: episodic (System 1) vs prototype (System 2)
+    # Optimization: If alpha is already set to a specific value (like 0.0 for NCM),
+    # we skip tuning to respect the ablation configuration.
     selected_alpha = args.alpha
     
     # Apply custom node temperature if provided (e.g., from run_paper_story.py)
@@ -251,7 +253,11 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     if hasattr(args, "align_dim") and args.align_dim is not None:
         Config.BIO_ALIGN_DIM = args.align_dim
 
-    if X_val is not None and len(X_val) > 0:
+    # Only tune if alpha is the default (0.5) and we aren't in a fixed-alpha ablation
+    # or if we explicitly pass a 'tune' flag.
+    is_fixed_ablation = (args.alpha == 0.0 or args.alpha == 1.0)
+    
+    if X_val is not None and len(X_val) > 0 and not is_fixed_ablation:
         # Optimization: use a 10% subset of val for 10x faster tuning
         val_size = len(X_val)
         tune_size = max(100, val_size // 10)
@@ -274,7 +280,10 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
             f"   ✅ Selected alpha: {selected_alpha:.2f} (Tuned on {tune_size} val samples)"
         )
     else:
-        print(f"   ⚠️  No validation split available; using alpha={selected_alpha:.2f}")
+        if is_fixed_ablation:
+            print(f"   ℹ️  Fixed Alpha Ablation: Using alpha={selected_alpha:.2f} (Tuning skipped)")
+        else:
+            print(f"   ⚠️  No validation split available; using alpha={selected_alpha:.2f}")
 
     # 7. Evaluate Bio System
     test_tensor = torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE)
