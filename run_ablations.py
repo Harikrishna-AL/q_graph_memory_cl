@@ -14,7 +14,7 @@ def run_experiment(backbone, dataset, **overrides):
     Config.DATASET = dataset
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(backbone, 384)
     
-    # Defaults
+    # Defaults (Ensure these match the intended MAYA base state)
     Config.BIO_CONSOLIDATION_MODE = "analytic_etf"
     Config.BIO_DYNAMIC_BUDGET_FLOOR = 0.25
     Config.BIO_USE_PROJECTION = False
@@ -22,26 +22,29 @@ def run_experiment(backbone, dataset, **overrides):
     Config.BIO_USE_DISCRIM_CONSOLIDATION = True
     Config.BIO_MAX_NODES_PER_CLASS = 128
     
-    # Apply overrides
+    # --- STEP 2: APPLY UPPERCASE OVERRIDES (The Fix) ---
     for k, v in overrides.items():
         if k == "alpha": continue
-        setattr(Config, k, v)
+        # Convert lowercase 'bio_var' to uppercase 'BIO_VAR'
+        upper_k = k.upper()
+        setattr(Config, upper_k, v)
+        print(f"   🔧 Override: Config.{upper_k} = {v}")
         
-    # --- STEP 2: LOAD DATA AND SYNC TASKS ---
-    # This is crucial: ObjectNet has 15 tasks, not 20.
+    # --- STEP 3: SYNC DATA ---
     _, _ = get_dataloader(dataset, use_train_set=True)
     N_TASKS = Config.N_TASKS
     CPT = Config.CLASSES_PER_TASK
-    print(f"\n🧪 Testing Config: {overrides} | Tasks: {N_TASKS} | CPT: {CPT}")
+    print(f"🧪 Tasks: {N_TASKS} | CPT: {CPT}")
 
     features, labels = load_cached_features(dataset, use_train=True)
     
-    # Remap labels
+    # Remap labels to dense 0-N
     unique_labels = np.unique(labels)
     label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
     remapped_labels = np.array([label_map[l] for l in labels])
     
-    # --- STEP 3: CONSTRUCT ARGS ---
+    # --- STEP 4: CONSTRUCT ARGS ---
+    # These must reflect the CURRENT Config state
     default_alpha = 0.2 if "dinov2" in backbone.lower() else 0.6
     node_temp = 0.12 if "dinov2" in backbone.lower() else 0.08
 
@@ -52,7 +55,7 @@ def run_experiment(backbone, dataset, **overrides):
         val_ratio=0.1,
         shuffle_stream=False,
         consolidate_every=1,
-        consolidation_lambda=overrides.get("consolidation_lambda", 0.1),
+        consolidation_lambda=getattr(Config, "CONSOLIDATION_LAMBDA", 0.1),
         alpha=overrides.get("alpha", default_alpha),
         bio_node_temp=node_temp,
         consolidation_mode=Config.BIO_CONSOLIDATION_MODE,
@@ -64,16 +67,14 @@ def run_experiment(backbone, dataset, **overrides):
         pap_weight=1.0,
         align_dim=256,
         subspace_rank=10,
-        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION,
-        N_TASKS=N_TASKS, # Force explicit pass
-        CLASSES_PER_TASK=CPT
+        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION
     )
     
-    # Force overrides into args namespace
+    # Final pass: ensure all overrides are in args too
     for k, v in overrides.items():
         setattr(args, k, v)
     
-    # --- STEP 4: RUN ---
+    # Run
     aia, mem = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
     return aia, mem
 
@@ -91,14 +92,17 @@ def main():
     results["component_ablation"] = []
     
     # a) NCM Baseline
+    # Forces alpha=0 and disables sleep-phase refinement
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
     results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem})
     
     # b) + Analytic ETF
+    # System 2 only, but with refinement enabled
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
     results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem})
     
     # c) Full MAYA (Hybrid)
+    # The default state: Hybrid System 1+2
     aia, mem = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
     results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem})
 
@@ -113,6 +117,7 @@ def main():
     print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
     results["k_sweep"] = []
     for k in [1, 16, 32, 64, 128, 256]:
+        # Overriding the uppercase BIO_MAX_NODES_PER_CLASS
         aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem})
 
