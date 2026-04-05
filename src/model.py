@@ -197,8 +197,13 @@ def load_backbone():
         print(f"🦖 Loading DINOv2 Giant (dinov2_vitg14_reg, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitg14_reg')
     elif backbone_name == "dinov3":
-        print(f"🦖 Loading DINOv3 Large (dinov3_vitl16, dim={Config.FEATURE_DIM})...")
-        model = torch.hub.load('facebookresearch/dinov3', 'dinov3_vitl16')
+        try:
+            import timm
+        except ImportError:
+            raise ImportError("timm is required for DINOv3 models. Run: pip install timm")
+        print(f"🦖 Loading DINOv3 Large (via timm, dim={Config.FEATURE_DIM})...")
+        # Using the standard timm name for DINOv3 Large
+        model = timm.create_model('hf-hub:timm/vit_large_patch16_dinov3.lvd1689m', pretrained=True, num_classes=0)
     elif backbone_name == "siglip":
         try:
             import timm
