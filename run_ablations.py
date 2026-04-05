@@ -8,24 +8,26 @@ from src.model import _BACKBONE_DIMS, load_backbone, extract_features, save_cach
 from src.data_utils import get_dataloader
 
 def run_experiment(backbone, dataset, **overrides):
-    # Reset Config to base state for this backbone/dataset
+    print(f"\n🧪 Testing Config: {overrides}")
     set_seed(42)
+    
+    # Reset Global Config to absolute baseline
     Config.BACKBONE = backbone
     Config.DATASET = dataset
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(backbone, 384)
-    
-    # Defaults from the user's specific command
     Config.BIO_CONSOLIDATION_MODE = "analytic_etf"
     Config.BIO_DYNAMIC_BUDGET_FLOOR = 0.25
-    Config.BIO_USE_PROJECTION = False
+    Config.BIO_USE_PROJECTION = False # Redundant in analytic_etf mode
     Config.BIO_USE_MAHALANOBIS = False
+    Config.BIO_USE_DISCRIM_CONSOLIDATION = True
+    Config.BIO_MAX_NODES_PER_CLASS = 128
     
     # Apply experiment-specific overrides
     for k, v in overrides.items():
-        if k == "alpha": continue # alpha handled in namespace
+        if k == "alpha": continue
         setattr(Config, k, v)
         
-    # Load or Extract Features
+    # Load features
     features, labels = load_cached_features(dataset, use_train=True)
     if features is None:
         _, train_loader = get_dataloader(dataset, use_train_set=True)
@@ -33,15 +35,10 @@ def run_experiment(backbone, dataset, **overrides):
         features, labels = extract_features(backbone_model, train_loader)
         save_cached_features(features, labels, dataset, True)
 
-    # Re-run dataloader to sync N_TASKS and CPT
-    _, _ = get_dataloader(dataset, use_train_set=True)
-    N_TASKS = Config.N_TASKS
-    CPT = Config.CLASSES_PER_TASK
-
-    # ── LABEL REMAPPING (Matches run_paper_story.py exactly) ──
+    # Remap labels
     unique_labels = np.unique(labels)
     label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
-    labels = np.array([label_map[l] for l in labels])
+    remapped_labels = np.array([label_map[l] for l in labels])
     
     # Backbone-aware defaults from run_paper_story.py
     default_alpha = 0.2 if "dinov2" in backbone.lower() else 0.6
@@ -54,24 +51,23 @@ def run_experiment(backbone, dataset, **overrides):
         val_ratio=0.1,
         shuffle_stream=False,
         consolidate_every=1,
-        consolidation_lambda=0.1,
+        consolidation_lambda=overrides.get("consolidation_lambda", 0.1),
         alpha=overrides.get("alpha", default_alpha),
         bio_node_temp=node_temp,
         consolidation_mode=Config.BIO_CONSOLIDATION_MODE,
         bio_use_projection=Config.BIO_USE_PROJECTION,
         bio_use_mahalanobis=Config.BIO_USE_MAHALANOBIS,
         bio_dynamic_budget_floor=Config.BIO_DYNAMIC_BUDGET_FLOOR,
-        use_etf=True, # Implicit in analytic_etf
+        bio_max_nodes_per_class=Config.BIO_MAX_NODES_PER_CLASS,
+        use_etf=True,
         pap_weight=1.0,
         align_dim=256,
-        subspace_rank=10
+        subspace_rank=10,
+        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION
     )
     
-    # Re-map any remaining overrides to args
-    for k, v in overrides.items():
-        setattr(args, k, v)
-    
-    aia, mem = run_single_experiment(42, features, labels, args, run_benchmarks=False)
+    # Run the full pipeline
+    aia, mem = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
     return aia, mem
 
 def main():
@@ -84,53 +80,44 @@ def main():
     results = {}
 
     # --- 1. Component Ablation Table ---
-    # NCM -> +ETF -> +Episodic Graph -> +Projection -> Full MAYA
-    print("\n🚀 [1/4] Component Ablation Table...")
+    # Simplified to only the meaningful components for MAYA (Analytic Mode)
+    print("\n🚀 [1/3] Component Ablation Table (MAYA Narrative)...")
     results["component_ablation"] = []
     
-    # a) NCM Baseline
+    # a) Baseline: Prototypical NCM
+    # alpha=0, consolidation=False
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
-    results["component_ablation"].append({"step": "NCM", "aia": aia, "mem": mem})
+    results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem})
     
-    # b) + ETF Alignment (using System 2 only)
+    # b) Step 1: Analytic ETF Alignment (System 2 only)
+    # alpha=0, consolidation=True
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
-    results["component_ablation"].append({"step": "+ETF", "aia": aia, "mem": mem})
+    results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem})
     
-    # c) + Episodic Graph (the default hybrid)
-    aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.5)
-    results["component_ablation"].append({"step": "+Episodic Graph", "aia": aia, "mem": mem})
-    
-    # d) + Projection (Enable projection matrix)
-    aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.5, bio_use_projection=True)
-    results["component_ablation"].append({"step": "+Projection (Full MAYA)", "aia": aia, "mem": mem})
+    # c) Step 2: Full MAYA (System 1 + 2 Hybrid)
+    # alpha=Default, consolidation=True
+    aia, mem = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
+    results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem})
 
-    # --- 2. Projection Matrix Ablation ---
-    print("\n🚀 [2/4] Projection Matrix Ablation...")
-    results["projection_ablation"] = []
-    for use_proj in [True, False]:
-        aia, mem = run_experiment(args.backbone, args.dataset, bio_use_projection=use_proj)
-        results["projection_ablation"].append({"use_projection": use_proj, "aia": aia, "mem": mem})
-
-    # --- 3. Lambda Sensitivity Sweep (RLA Ridge) ---
-    # We sweep 'consolidation_lambda' as the weight of the new info vs old mean
-    print("\n🚀 [3/4] Lambda Sensitivity Sweep...")
+    # --- 2. Lambda Sensitivity Sweep (RLA Regularization) ---
+    print("\n🚀 [2/3] Lambda Sensitivity Sweep...")
     results["lambda_sweep"] = []
     for l in [0.001, 0.01, 0.1, 0.5, 0.9]:
         aia, mem = run_experiment(args.backbone, args.dataset, consolidation_lambda=l)
         results["lambda_sweep"].append({"lambda": l, "aia": aia, "mem": mem})
 
-    # --- 4. Node Count Sweep (K Ablation) ---
-    print("\n🚀 [4/4] Node Count Sweep (K ablation)...")
+    # --- 3. Node Count Sweep (Memory Budget) ---
+    print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
     results["k_sweep"] = []
     for k in [1, 16, 32, 64, 128, 256]:
-        aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k)
+        aia, mem = run_experiment(args.backbone, args.dataset, BIO_MAX_NODES_PER_CLASS=k)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem})
 
     # Final Save
     out_path = f"results/ablation_{args.backbone}_{args.dataset}.json"
     with open(out_path, "w") as f:
         json.dump(results, f, indent=4)
-    print(f"\n✅ All MAYA ablations complete. Results saved to {out_path}")
+    print(f"\n✅ MAYA ablations complete. Results saved to {out_path}")
 
 if __name__ == "__main__":
     main()
