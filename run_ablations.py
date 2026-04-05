@@ -8,39 +8,40 @@ from src.model import _BACKBONE_DIMS, load_backbone, extract_features, save_cach
 from src.data_utils import get_dataloader
 
 def run_experiment(backbone, dataset, **overrides):
-    print(f"\n🧪 Testing Config: {overrides}")
+    # --- STEP 1: FORCE RESET CONFIG ---
     set_seed(42)
-    
-    # Reset Global Config to absolute baseline
     Config.BACKBONE = backbone
     Config.DATASET = dataset
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(backbone, 384)
+    
+    # Defaults
     Config.BIO_CONSOLIDATION_MODE = "analytic_etf"
     Config.BIO_DYNAMIC_BUDGET_FLOOR = 0.25
-    Config.BIO_USE_PROJECTION = False # Redundant in analytic_etf mode
+    Config.BIO_USE_PROJECTION = False
     Config.BIO_USE_MAHALANOBIS = False
     Config.BIO_USE_DISCRIM_CONSOLIDATION = True
     Config.BIO_MAX_NODES_PER_CLASS = 128
     
-    # Apply experiment-specific overrides
+    # Apply overrides
     for k, v in overrides.items():
         if k == "alpha": continue
         setattr(Config, k, v)
         
-    # Load features
-    features, labels = load_cached_features(dataset, use_train=True)
-    if features is None:
-        _, train_loader = get_dataloader(dataset, use_train_set=True)
-        backbone_model = load_backbone()
-        features, labels = extract_features(backbone_model, train_loader)
-        save_cached_features(features, labels, dataset, True)
+    # --- STEP 2: LOAD DATA AND SYNC TASKS ---
+    # This is crucial: ObjectNet has 15 tasks, not 20.
+    _, _ = get_dataloader(dataset, use_train_set=True)
+    N_TASKS = Config.N_TASKS
+    CPT = Config.CLASSES_PER_TASK
+    print(f"\n🧪 Testing Config: {overrides} | Tasks: {N_TASKS} | CPT: {CPT}")
 
+    features, labels = load_cached_features(dataset, use_train=True)
+    
     # Remap labels
     unique_labels = np.unique(labels)
     label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
     remapped_labels = np.array([label_map[l] for l in labels])
     
-    # Backbone-aware defaults from run_paper_story.py
+    # --- STEP 3: CONSTRUCT ARGS ---
     default_alpha = 0.2 if "dinov2" in backbone.lower() else 0.6
     node_temp = 0.12 if "dinov2" in backbone.lower() else 0.08
 
@@ -63,10 +64,16 @@ def run_experiment(backbone, dataset, **overrides):
         pap_weight=1.0,
         align_dim=256,
         subspace_rank=10,
-        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION
+        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION,
+        N_TASKS=N_TASKS, # Force explicit pass
+        CLASSES_PER_TASK=CPT
     )
     
-    # Run the full pipeline
+    # Force overrides into args namespace
+    for k, v in overrides.items():
+        setattr(args, k, v)
+    
+    # --- STEP 4: RUN ---
     aia, mem = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
     return aia, mem
 
@@ -80,44 +87,40 @@ def main():
     results = {}
 
     # --- 1. Component Ablation Table ---
-    # Simplified to only the meaningful components for MAYA (Analytic Mode)
-    print("\n🚀 [1/3] Component Ablation Table (MAYA Narrative)...")
+    print("\n🚀 [1/3] Component Ablation Table...")
     results["component_ablation"] = []
     
-    # a) Baseline: Prototypical NCM
-    # alpha=0, consolidation=False
+    # a) NCM Baseline
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
     results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem})
     
-    # b) Step 1: Analytic ETF Alignment (System 2 only)
-    # alpha=0, consolidation=True
+    # b) + Analytic ETF
     aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
     results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem})
     
-    # c) Step 2: Full MAYA (System 1 + 2 Hybrid)
-    # alpha=Default, consolidation=True
+    # c) Full MAYA (Hybrid)
     aia, mem = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
     results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem})
 
-    # --- 2. Lambda Sensitivity Sweep (RLA Regularization) ---
+    # --- 2. Lambda Sensitivity Sweep ---
     print("\n🚀 [2/3] Lambda Sensitivity Sweep...")
     results["lambda_sweep"] = []
     for l in [0.001, 0.01, 0.1, 0.5, 0.9]:
         aia, mem = run_experiment(args.backbone, args.dataset, consolidation_lambda=l)
         results["lambda_sweep"].append({"lambda": l, "aia": aia, "mem": mem})
 
-    # --- 3. Node Count Sweep (Memory Budget) ---
+    # --- 3. Node Count Sweep ---
     print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
     results["k_sweep"] = []
     for k in [1, 16, 32, 64, 128, 256]:
-        aia, mem = run_experiment(args.backbone, args.dataset, BIO_MAX_NODES_PER_CLASS=k)
+        aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem})
 
     # Final Save
     out_path = f"results/ablation_{args.backbone}_{args.dataset}.json"
     with open(out_path, "w") as f:
         json.dump(results, f, indent=4)
-    print(f"\n✅ MAYA ablations complete. Results saved to {out_path}")
+    print(f"\n✅ All MAYA ablations complete. Results saved to {out_path}")
 
 if __name__ == "__main__":
     main()
