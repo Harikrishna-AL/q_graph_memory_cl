@@ -178,9 +178,12 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
             )
             memory_trace.extend(tr)
             
-            # Tune alpha on validation set up to current task
+            # 5. Tune alpha: episodic (System 1) vs prototype (System 2)
+            # Optimization: If alpha is fixed (0.0 or 1.0), skip tuning to respect ablation
             best_alpha = args.alpha
-            if X_val is not None and len(X_val) > 0:
+            is_fixed = (args.alpha == 0.0 or args.alpha == 1.0)
+            
+            if X_val is not None and len(X_val) > 0 and not is_fixed:
                 t_val_mask = (y_val < end_cls)
                 val_tensor = torch.tensor(X_val[t_val_mask], dtype=torch.float32).to(Config.DEVICE)
                 val_labels = torch.tensor(y_val[t_val_mask], dtype=torch.long).to(Config.DEVICE)
@@ -194,6 +197,8 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
                         best_val_acc = val_acc
                         best_alpha = alpha
                 print(f"   🔎 Tuned best alpha={best_alpha:.2f} (Val Acc: {best_val_acc*100:.1f}%)")
+            elif is_fixed:
+                print(f"   ℹ️  Fixed Alpha Ablation: Using alpha={best_alpha:.2f}")
             
             # Pure CIL Evaluate using the tuned alpha
             test_tensor = torch.tensor(X_test, dtype=torch.float32).to(Config.DEVICE)
