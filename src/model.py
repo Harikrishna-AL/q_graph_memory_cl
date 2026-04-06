@@ -340,14 +340,16 @@ def extract_features(backbone, dataloader):
                     print(f"⚠️ Skipping batch {batch_idx}: 'imgs' is not a Tensor")
                     continue
 
-                imgs = imgs.to(Config.DEVICE)
+                # Match input precision to backbone precision (e.g., bfloat16 for 7B)
+                model_dtype = next(backbone.parameters()).dtype
+                imgs = imgs.to(Config.DEVICE, dtype=model_dtype)
                 
                 # 🔥 Accelerate throughput by 3-4x using Mixed Precision (GPU Tensor Cores)
                 device_type = "cuda" if torch.cuda.is_available() else "cpu"
                 use_amp = device_type == "cuda" and ("dinov2" in Config.BACKBONE.lower() or "siglip" in Config.BACKBONE.lower())
                 
                 if use_amp:
-                    with torch.autocast(device_type="cuda"):
+                    with torch.autocast(device_type="cuda", dtype=model_dtype):
                         f = backbone(imgs)
                 else:
                     f = backbone(imgs)
