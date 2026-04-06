@@ -19,9 +19,9 @@ CACHE_DIR = "cache"
 _BACKBONE_DIMS = {
     "dinov2": 384,       # ViT-S/14
     "dinov2_giant": 1536,# ViT-g/14
-    "dinov3": 1024,      # dinov3_vitl16 (Large)
+    "dinov3": 3584,      # dinov3_vit7b16 (7 Billion Parameters)
     "siglip": 1152,      # vit_so400m_patch14_siglip_384
-    "siglip2": 1152,     # ViT-SO400M-14-SigLIP2
+    "siglip2": 1536,     # ViT-g-16-SigLIP2-256 (Giant)
     "resnet18": 512,
     "resnet34": 512,
     "resnet50": 2048,
@@ -201,9 +201,9 @@ def load_backbone():
             import timm
         except ImportError:
             raise ImportError("timm is required for DINOv3 models. Run: pip install timm")
-        print(f"🦖 Loading DINOv3 Large (via timm, dim={Config.FEATURE_DIM})...")
-        # Using the standard timm name for DINOv3 Large
-        model = timm.create_model('hf-hub:timm/vit_large_patch16_dinov3.lvd1689m', pretrained=True, num_classes=0)
+        print(f"🦖 Loading DINOv3 7B (dinov3_vit7b16, dim={Config.FEATURE_DIM})...")
+        # Accessing Meta's 7B variant via torch.hub
+        model = torch.hub.load('facebookresearch/dinov3', 'dinov3_vit7b16')
     elif backbone_name == "siglip":
         try:
             import timm
@@ -216,9 +216,8 @@ def load_backbone():
             import timm
         except ImportError:
             raise ImportError("timm is required for SigLIP 2 models. Run: pip install timm")
-        print(f"👀 Loading SigLIP 2 SO400m (dim={Config.FEATURE_DIM})...")
-        # Accessing SigLIP 2 via timm's HF Hub integration
-        model = timm.create_model('hf-hub:timm/ViT-SO400M-14-SigLIP2', pretrained=True, num_classes=0)
+        print(f"👀 Loading SigLIP 2 Giant (ViT-g-16-SigLIP2-256, dim={Config.FEATURE_DIM})...")
+        model = timm.create_model('hf-hub:timm/ViT-g-16-SigLIP2-256', pretrained=True, num_classes=0)
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
