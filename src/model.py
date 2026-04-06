@@ -201,9 +201,14 @@ def load_backbone():
             import timm
         except ImportError:
             raise ImportError("timm is required for DINOv3 models. Run: pip install timm")
-        print(f"🦖 Loading DINOv3 7B (dinov3_vit7b16, dim={Config.FEATURE_DIM})...")
-        # Accessing Meta's 7B variant via torch.hub
-        model = torch.hub.load('facebookresearch/dinov3', 'dinov3_vit7b16')
+        print(f"🦖 Loading DINOv3 7B (via timm, dim={Config.FEATURE_DIM})...")
+        # Use timm's hf-hub integration for the 7B variant to avoid 403 errors
+        model = timm.create_model('hf-hub:timm/vit_7b_patch16_dinov3.lvd1689m', pretrained=True, num_classes=0)
+        
+        # ⚠️ CRITICAL: 7B model requires massive VRAM. Force a tiny batch size.
+        if Config.BATCH_SIZE > 16:
+            print(f"⚠️  WARNING: Batch size {Config.BATCH_SIZE} is too large for DINOv3 7B on 16GB GPUs. Auto-reducing to 8.")
+            Config.BATCH_SIZE = 8
     elif backbone_name == "siglip":
         try:
             import timm
