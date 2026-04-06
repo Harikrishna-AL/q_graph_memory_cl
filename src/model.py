@@ -21,7 +21,7 @@ _BACKBONE_DIMS = {
     "dinov2_giant": 1536,# ViT-g/14
     "dinov3": 3584,      # dinov3_vit7b16 (7 Billion Parameters)
     "siglip": 1152,      # vit_so400m_patch14_siglip_384
-    "siglip2": 1536,     # ViT-g-16-SigLIP2-256 (Giant)
+    "siglip2": 1536,     # ViT-gopt-16-SigLIP2-384
     "resnet18": 512,
     "resnet34": 512,
     "resnet50": 2048,
@@ -233,9 +233,9 @@ def load_backbone():
             from open_clip import create_model_from_pretrained
         except ImportError:
             raise ImportError("open-clip-torch is required for SigLIP 2 models. Run: pip install open-clip-torch")
-        print(f"👀 Loading SigLIP 2 Giant (ViT-gopt-16-SigLIP2-256 via open_clip, dim={Config.FEATURE_DIM})...")
-        # Use the specific open_clip loading path you found
-        model, _ = create_model_from_pretrained('hf-hub:timm/ViT-gopt-16-SigLIP2-256')
+        print(f"👀 Loading SigLIP 2 Giant 384 (ViT-gopt-16-SigLIP2-384 via open_clip, dim={Config.FEATURE_DIM})...")
+        # Use the 384px Giant version
+        model, _ = create_model_from_pretrained('hf-hub:timm/ViT-gopt-16-SigLIP2-384')
         model = _OpenClipVisualExtractor(model)
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
