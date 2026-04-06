@@ -202,13 +202,12 @@ def load_backbone():
         except ImportError:
             raise ImportError("timm is required for DINOv3 models. Run: pip install timm")
         print(f"🦖 Loading DINOv3 7B (via timm, dim={Config.FEATURE_DIM})...")
-        # Use timm's hf-hub integration for the 7B variant to avoid 403 errors
-        model = timm.create_model('hf-hub:timm/vit_7b_patch16_dinov3.lvd1689m', pretrained=True, num_classes=0)
+        # Load in bfloat16 to fit comfortably in 46GB L40S while keeping high throughput
+        model = timm.create_model('hf-hub:timm/vit_7b_patch16_dinov3.lvd1689m', pretrained=True, num_classes=0).to(torch.bfloat16)
         
-        # ⚠️ CRITICAL: 7B model requires massive VRAM. Force a tiny batch size.
-        if Config.BATCH_SIZE > 16:
-            print(f"⚠️  WARNING: Batch size {Config.BATCH_SIZE} is too large for DINOv3 7B on 16GB GPUs. Auto-reducing to 8.")
-            Config.BATCH_SIZE = 8
+        # With 46GB L40S, we can safely use a batch size of 128 even for the 7B model
+        print(f"🚀 Optimizing Batch size = 128 for DINOv3 7B on L40S GPU.")
+        Config.BATCH_SIZE = 128
     elif backbone_name == "siglip":
         try:
             import timm
