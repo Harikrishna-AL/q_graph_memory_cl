@@ -108,6 +108,19 @@ class _ResNetExtractor(nn.Module):
         return self.backbone(x).flatten(1)
 
 
+class _OpenClipVisualExtractor(nn.Module):
+    """
+    Wraps an Open-CLIP model to provide a consistent 'forward' pass that
+    calls 'encode_image' and returns flattened features.
+    """
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+    def forward(self, x):
+        # Open-CLIP models use encode_image for the visual backbone
+        return self.model.encode_image(x, normalize=True)
+
+
 class _EfficientNetExtractor(nn.Module):
     """
     Wraps a torchvision EfficientNet and returns average-pooled penultimate features
@@ -217,12 +230,13 @@ def load_backbone():
         model = timm.create_model('vit_so400m_patch14_siglip_384.webli', pretrained=True, num_classes=0)
     elif backbone_name == "siglip2":
         try:
-            import timm
+            from open_clip import create_model_from_pretrained
         except ImportError:
-            raise ImportError("timm is required for SigLIP 2 models. Run: pip install timm")
-        print(f"👀 Loading SigLIP 2 Giant (vit_giant_patch16_siglip2_256, dim={Config.FEATURE_DIM})...")
-        # Use the standard timm name for SigLIP 2 Giant
-        model = timm.create_model('vit_giant_patch16_siglip2_256', pretrained=True, num_classes=0)
+            raise ImportError("open-clip-torch is required for SigLIP 2 models. Run: pip install open-clip-torch")
+        print(f"👀 Loading SigLIP 2 Giant (ViT-gopt-16-SigLIP2-256 via open_clip, dim={Config.FEATURE_DIM})...")
+        # Use the specific open_clip loading path you found
+        model, _ = create_model_from_pretrained('hf-hub:timm/ViT-gopt-16-SigLIP2-256')
+        model = _OpenClipVisualExtractor(model)
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
