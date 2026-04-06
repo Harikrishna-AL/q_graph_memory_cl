@@ -220,8 +220,9 @@ def load_backbone():
             import timm
         except ImportError:
             raise ImportError("timm is required for SigLIP 2 models. Run: pip install timm")
-        print(f"👀 Loading SigLIP 2 Giant (ViT-g-16-SigLIP2-256, dim={Config.FEATURE_DIM})...")
-        model = timm.create_model('hf-hub:timm/ViT-g-16-SigLIP2-256', pretrained=True, num_classes=0)
+        print(f"👀 Loading SigLIP 2 Giant (vit_giant_patch16_siglip2_256, dim={Config.FEATURE_DIM})...")
+        # Use the standard timm name for SigLIP 2 Giant
+        model = timm.create_model('vit_giant_patch16_siglip2_256', pretrained=True, num_classes=0)
     elif backbone_name == "resnet50_ssl":
         print(f"🧬 Loading Self-Supervised ResNet50 (DINO Contrastive, dim={Config.FEATURE_DIM})...")
         model = torch.hub.load('facebookresearch/dino:main', 'dino_resnet50')
