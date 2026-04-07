@@ -23,34 +23,58 @@ def _snapshot_memory(
     phase: str,
 ) -> dict[str, Any]:
     """
-    Captures a lightweight memory snapshot at a single point in training.
-
-    Fields
-    ------
-    block         : block index (0-based)
-    samples_seen  : total training samples processed so far
-    n_nodes       : current episodic node count
-    node_mb       : memory used by the episodic node bank  (variable)
-    proto_mb      : memory used by the prototype buffer    (constant)
-    proj_mb       : memory used by the projection matrix   (constant)
-    total_mb      : sum of the above three
-    phase         : "after_online" | "after_consolidation"
+    Captures a complete memory snapshot at a single point in training.
+    Accounts for ALL model components, not just nodes + prototypes + projection.
     """
     to_mb = 1.0 / (1024 * 1024)
 
+    # --- Core components ---
     node_bytes = model.nodes.element_size() * model.nodes.nelement()
     
-    # Calculate prototypes bytes by getting the built tensor if classes exist
-    protos, classes = model._build_proto_tensor()
-    if protos is not None:
-        proto_bytes = protos.element_size() * protos.nelement()
-    else:
-        proto_bytes = 0
+    # Node metadata tensors (freq, strength, consistency, fidelity, labels)
+    for attr in ["node_freq", "node_strength", "node_consistency", "node_fidelity", "node_labels"]:
+        t = getattr(model, attr, None)
+        if t is not None and hasattr(t, "nelement"):
+            node_bytes += t.element_size() * t.nelement()
 
+    # Prototypes (running sums + counts + M2 variance)
+    protos, classes = model._build_proto_tensor()
+    proto_bytes = protos.element_size() * protos.nelement() if protos is not None else 0
+    # Welford accumulators (_proto_sum, _proto_m2) — one D-dim tensor per class
+    for store in [model._proto_sum, model._proto_m2]:
+        for t in store.values():
+            if hasattr(t, "nelement"):
+                proto_bytes += t.element_size() * t.nelement()
+
+    # Projection matrix
+    proj_bytes = 0
     if getattr(model, "proj_matrix", None) is not None:
         proj_bytes = model.proj_matrix.element_size() * model.proj_matrix.nelement()
-    else:
-        proj_bytes = 0
+
+    # --- New components (alignment, ETF, RLA, subspaces) ---
+    extra_bytes = 0
+    
+    # Alignment layer parameters
+    if hasattr(model, "align_layer"):
+        for p in model.align_layer.parameters():
+            extra_bytes += p.element_size() * p.nelement()
+
+    # ETF matrix
+    if getattr(model, "_etf_matrix", None) is not None:
+        extra_bytes += model._etf_matrix.element_size() * model._etf_matrix.nelement()
+
+    # RLA accumulators (A, B, P)
+    for attr in ["_RLA_A", "_RLA_B", "_RLA_P"]:
+        t = getattr(model, attr, None)
+        if t is not None and hasattr(t, "nelement"):
+            extra_bytes += t.element_size() * t.nelement()
+
+    # Class subspaces
+    for t in getattr(model, "_class_subspaces", {}).values():
+        if hasattr(t, "nelement"):
+            extra_bytes += t.element_size() * t.nelement()
+
+    total_bytes = node_bytes + proto_bytes + proj_bytes + extra_bytes
 
     return {
         "block": block_idx,
@@ -58,8 +82,8 @@ def _snapshot_memory(
         "n_nodes": int(model.nodes.shape[0]),
         "node_mb": node_bytes * to_mb,
         "proto_mb": proto_bytes * to_mb,
-        "proj_mb": proj_bytes * to_mb,
-        "total_mb": (node_bytes + proto_bytes + proj_bytes) * to_mb,
+        "proj_mb": (proj_bytes + extra_bytes) * to_mb,
+        "total_mb": total_bytes * to_mb,
         "phase": phase,
     }
 
@@ -378,6 +402,7 @@ def train_bio_graph(
     lambda_val: float = 0.1,
     model: BioEpisodicGraph = None,
     verbose: bool = True,
+    samples_offset: int = 0,
 ) -> tuple[BioEpisodicGraph, list[dict[str, Any]]]:
     """
     Simulates the Bio-Inspired learning process:
@@ -426,7 +451,7 @@ def train_bio_graph(
         model.online_step(batch_feat, batch_lbl)
 
         # Snapshot A — peak memory right after online update, before any pruning
-        memory_trace.append(_snapshot_memory(model, i, end_idx, "after_online"))
+        memory_trace.append(_snapshot_memory(model, i, samples_offset + end_idx, "after_online"))
 
         # 2. OFFLINE CONSOLIDATION PHASE: Transfer to Long-term Memory & Pruning
         # In a real scenario, this might happen less frequently, but we do it per block here.
@@ -435,7 +460,7 @@ def train_bio_graph(
 
             # Snapshot B — post-sleep memory after pruning; lower than snapshot A
             memory_trace.append(
-                _snapshot_memory(model, i, end_idx, "after_consolidation")
+                _snapshot_memory(model, i, samples_offset + end_idx, "after_consolidation")
             )
 
             if verbose:
@@ -450,7 +475,7 @@ def train_bio_graph(
         model.consolidate(lambda_val=lambda_val)
         memory_trace.append(
             _snapshot_memory(
-                model, len(memory_trace), total_images, "after_consolidation"
+                model, len(memory_trace), samples_offset + total_images, "after_consolidation"
             )
         )
 

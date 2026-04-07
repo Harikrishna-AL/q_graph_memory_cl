@@ -156,6 +156,7 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     
     if getattr(args, "pure_cil", False):
         print("\n   🌀 --- PURE CIL MODE SCENARIO ---")
+        cumulative_samples = 0
         for task_id in range(Config.N_TASKS):
             print(f"\n   📚 Training Task {task_id + 1}/{Config.N_TASKS}")
             start_cls = task_id * Config.CLASSES_PER_TASK
@@ -174,8 +175,10 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
                 consolidate_every=args.consolidate_every,
                 lambda_val=args.consolidation_lambda,
                 model=bio_model,
-                verbose=False
+                verbose=False,
+                samples_offset=cumulative_samples,
             )
+            cumulative_samples += len(X_stream_task)
             memory_trace.extend(tr)
             
             # 5. Tune alpha: episodic (System 1) vs prototype (System 2)

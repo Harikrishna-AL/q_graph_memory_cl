@@ -248,200 +248,97 @@ def _plot_results(clean_accs, occ_accs):
     print(f"📈 Plot saved to outputs/results_plot.png & .svg")
 
 
+def _downsample_to_task_boundaries(snapshots, n_tasks=None):
+    """
+    Reduce per-block snapshots to one per task transition.
+    Groups by evenly splitting the snapshot list into n_tasks buckets
+    and keeping the LAST snapshot from each bucket (= end-of-task state).
+    """
+    if not snapshots:
+        return snapshots
+    if n_tasks is None:
+        n_tasks = getattr(Config, "N_TASKS", 10)
+    n_tasks = max(1, int(n_tasks))
+    if len(snapshots) <= n_tasks:
+        return snapshots  # already sparse enough
+    bucket_size = len(snapshots) / n_tasks
+    result = []
+    for t in range(n_tasks):
+        end_idx = int(round((t + 1) * bucket_size)) - 1
+        end_idx = min(end_idx, len(snapshots) - 1)
+        result.append(snapshots[end_idx])
+    return result
+
+
 def plot_memory_trace(memory_trace, dataset_name="dataset"):
     """
     Two-panel figure showing how memory evolves block-by-block during training.
-
-    Top panel — Memory in MB
-        Green line : peak memory right after each online step (before pruning)
-        Red line   : post-sleep memory after each consolidation (after pruning)
-        Shaded fill: memory recovered by consolidation each block
-        Grey band  : constant baseline — prototypes + projection matrix
-
-    Bottom panel — Episodic node count
-        Green line : nodes after online step
-        Red line   : nodes after consolidation
-        Shaded fill: nodes pruned each block
-
-    The sawtooth pattern reveals the grow-then-prune rhythm of the bio cycle.
+    Downsampled to one point per task for a clean plot.
     """
     if not memory_trace:
         print("⚠️  Memory trace is empty — nothing to plot.")
         return
 
-    online = [s for s in memory_trace if s["phase"] == "after_online"]
-    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+    online_all = [s for s in memory_trace if s["phase"] == "after_online"]
+    consol_all = [s for s in memory_trace if s["phase"] == "after_consolidation"]
 
-    if not online:
-        print("⚠️  No 'after_online' snapshots found.")
-        return
+    if not consol_all:
+        consol_all = online_all
 
-    # Use block index as x so both phases align on the same tick
-    online_x = [s["block"] for s in online]
-    consol_x = [s["block"] for s in consol]
+    # Downsample to one point per task
+    consol = _downsample_to_task_boundaries(consol_all)
+    online = _downsample_to_task_boundaries(online_all)
 
-    online_mem = [s["total_mb"] for s in online]
-    consol_mem = [s["total_mb"] for s in consol]
-    online_nodes = [s["n_nodes"] for s in online]
-    consol_nodes = [s["n_nodes"] for s in consol]
-
-    # Constant floor: prototype + projection memory (take from first snapshot)
-    floor_mb = online[0]["proto_mb"] + online[0]["proj_mb"]
-
-    # ── x-axis tick labels: block index with sample count every ~10 blocks ──
-    step = max(1, len(online_x) // 10)
-    tick_positions = online_x[::step]
-    tick_labels = [
-        f"{s['block']}\n({s['samples_seen'] // 1000}k)" for s in online[::step]
-    ]
+    # Use consolidation points as our 'Stable baseline'
+    x = list(range(1, len(consol) + 1))  # Task 1, 2, 3, ...
+    y_mem = [s["total_mb"] for s in consol]
+    y_nodes = [s["n_nodes"] for s in consol]
+    
+    # Floor: proto + proj (baseline memory)
+    floor_mb = consol[0]["proto_mb"] + consol[0]["proj_mb"]
 
     fig, (ax_mem, ax_nodes) = plt.subplots(
-        2, 1, figsize=(13, 7), sharex=False, gridspec_kw={"hspace": 0.45}
+        2, 1, figsize=(12, 8), sharex=True, gridspec_kw={"hspace": 0.2}
     )
 
-    # ── TOP: Memory ──────────────────────────────────────────────────────────
-    ax_mem.plot(
-        online_x,
-        online_mem,
-        "o-",
-        color="#2ca02c",
-        linewidth=1.8,
-        markersize=4,
-        alpha=0.85,
-        label="After online step (peak)",
-    )
-    if consol_mem:
-        ax_mem.plot(
-            consol_x,
-            consol_mem,
-            "s-",
-            color="#d62728",
-            linewidth=1.8,
-            markersize=4,
-            alpha=0.85,
-            label="After consolidation (post-sleep)",
-        )
-        # Shade the gap only where both series share a block index
-        shared_blocks = sorted(set(online_x) & set(consol_x))
-        online_dict = {s["block"]: s["total_mb"] for s in online}
-        consol_dict = {s["block"]: s["total_mb"] for s in consol}
-        shared_peak = [online_dict[b] for b in shared_blocks]
-        shared_post = [consol_dict[b] for b in shared_blocks]
-        ax_mem.fill_between(
-            shared_blocks,
-            shared_post,
-            shared_peak,
-            alpha=0.12,
-            color="#2ca02c",
-            label="Memory freed by consolidation",
-        )
+    # ── TOP: Memory (MB) ───────────────────────────────────────────────────
+    # Smooth stable line (The long-term footprint)
+    ax_mem.plot(x, y_mem, 'o-', color='#d62728', linewidth=2.5, label="Stable Memory (Post-Sleep)")
+    
+    # Grey baseline floor
+    ax_mem.axhline(floor_mb, color="grey", linestyle="--", alpha=0.5, label=f"Base (≈{floor_mb:.1f} MB)")
 
-    # Grey band for constant floor
-    ax_mem.axhline(
-        floor_mb,
-        color="grey",
-        linewidth=1.2,
-        linestyle="--",
-        alpha=0.6,
-        label=f"Constant base (proto + proj ≈ {floor_mb:.2f} MB)",
-    )
+    # Find the peaks to shade the online growth
+    online_dict = {s["block"]: s["total_mb"] for s in online}
+    peaks = [online_dict.get(b, m) for b, m in zip(x, y_mem)]
+    ax_mem.fill_between(x, y_mem, peaks, color='#2ca02c', alpha=0.2, label="Temporary Online Growth")
 
-    ax_mem.set_ylabel("Memory (MB)", fontsize=11)
-    ax_mem.set_title(
-        f"Memory Footprint During Training — {dataset_name}",
-        fontsize=13,
-        fontweight="bold",
-    )
-    ax_mem.set_xticks(tick_positions)
-    ax_mem.set_xticklabels(tick_labels, fontsize=8)
-    ax_mem.set_xlabel("Block  (samples seen)", fontsize=10)
-    ax_mem.legend(fontsize=9, loc="upper left")
+    ax_mem.set_ylabel("Memory (MB)", fontsize=12)
+    ax_mem.set_title(f"Memory Evolution: {dataset_name.upper()}", fontsize=14, fontweight="bold")
+    ax_mem.legend(loc="upper left", fontsize=10)
     ax_mem.grid(True, linestyle="--", alpha=0.3)
 
-    # Annotate final values
-    ax_mem.annotate(
-        f"  {online_mem[-1]:.2f} MB",
-        xy=(online_x[-1], online_mem[-1]),
-        fontsize=8,
-        color="#2ca02c",
-        va="center",
-    )
-    if consol_mem:
-        ax_mem.annotate(
-            f"  {consol_mem[-1]:.2f} MB",
-            xy=(consol_x[-1], consol_mem[-1]),
-            fontsize=8,
-            color="#d62728",
-            va="center",
-        )
+    # ── BOTTOM: Node Count ──────────────────────────────────────────────────
+    # Smooth stable line
+    ax_nodes.plot(x, y_nodes, 's-', color='#1f77b4', linewidth=2.5, label="Episodic Nodes (Post-Sleep)")
+    
+    # Shade the pruned nodes
+    online_node_dict = {s["block"]: s["n_nodes"] for s in online}
+    node_peaks = [online_node_dict.get(b, n) for b, n in zip(x, y_nodes)]
+    ax_nodes.fill_between(x, y_nodes, node_peaks, color='#1f77b4', alpha=0.15, label="Nodes Pruned during Sleep")
 
-    # ── BOTTOM: Node count ────────────────────────────────────────────────────
-    ax_nodes.plot(
-        online_x,
-        online_nodes,
-        "o-",
-        color="#2ca02c",
-        linewidth=1.8,
-        markersize=4,
-        alpha=0.85,
-        label="After online step",
-    )
-    if consol_nodes:
-        ax_nodes.plot(
-            consol_x,
-            consol_nodes,
-            "s-",
-            color="#d62728",
-            linewidth=1.8,
-            markersize=4,
-            alpha=0.85,
-            label="After consolidation",
-        )
-        shared_on_nodes = [online_dict[b] for b in shared_blocks]  # reuse dict trick
-        # recompute with node counts
-        online_node_dict = {s["block"]: s["n_nodes"] for s in online}
-        consol_node_dict = {s["block"]: s["n_nodes"] for s in consol}
-        shared_peak_n = [online_node_dict[b] for b in shared_blocks]
-        shared_post_n = [consol_node_dict[b] for b in shared_blocks]
-        ax_nodes.fill_between(
-            shared_blocks,
-            shared_post_n,
-            shared_peak_n,
-            alpha=0.12,
-            color="#2ca02c",
-            label="Nodes pruned by consolidation",
-        )
-
-    ax_nodes.set_ylabel("Episodic node count", fontsize=11)
-    ax_nodes.set_xlabel("Block  (samples seen)", fontsize=10)
-    ax_nodes.set_xticks(tick_positions)
-    ax_nodes.set_xticklabels(tick_labels, fontsize=8)
-    ax_nodes.legend(fontsize=9, loc="upper left")
+    ax_nodes.set_ylabel("Episodic Node Count", fontsize=12)
+    ax_nodes.set_xlabel("Task", fontsize=12)
+    ax_nodes.legend(loc="upper left", fontsize=10)
     ax_nodes.grid(True, linestyle="--", alpha=0.3)
 
-    # Annotate final node counts
-    ax_nodes.annotate(
-        f"  {online_nodes[-1]}",
-        xy=(online_x[-1], online_nodes[-1]),
-        fontsize=8,
-        color="#2ca02c",
-        va="center",
-    )
-    if consol_nodes:
-        ax_nodes.annotate(
-            f"  {consol_nodes[-1]}",
-            xy=(consol_x[-1], consol_nodes[-1]),
-            fontsize=8,
-            color="#d62728",
-            va="center",
-        )
-
+    plt.tight_layout()
     os.makedirs("outputs", exist_ok=True)
     out_base = f"outputs/memory_trace_{dataset_name}"
-    plt.savefig(f"{out_base}.png", dpi=200, bbox_inches="tight")
-    plt.savefig(f"{out_base}.svg", format="svg", bbox_inches="tight")
+    plt.savefig(f"{out_base}.png", dpi=300)
+    plt.savefig(f"{out_base}.svg", format="svg")
     plt.close()
-    print(f"✅ Memory trace saved → {out_base}.png / .svg")
+    print(f"✅ Cleaned memory trace saved → {out_base}.png / .svg")
 
 
 def plot_memory_comparison(
@@ -480,10 +377,11 @@ def plot_memory_comparison(
         print("⚠️  Memory trace is empty — nothing to plot.")
         return
 
-    # ── Extract post-consolidation snapshots (the stable, post-sleep footprint)
-    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
-    if not consol:
-        consol = memory_trace  # fallback: no consolidation was run
+    # ── Extract post-consolidation snapshots, downsampled to one per task
+    consol_all = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+    if not consol_all:
+        consol_all = memory_trace  # fallback: no consolidation was run
+    consol = _downsample_to_task_boundaries(consol_all)
 
     bio_x = np.array([s["samples_seen"] for s in consol])
     bio_y = np.array([s["total_mb"] for s in consol])
