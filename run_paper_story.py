@@ -315,9 +315,10 @@ def main():
     print("==================================================")
 
     # ── Generate paper plots ──────────────────────────────────────────────
-    plot_pareto_accuracy_memory(results_summary, dataset_name=args.dataset)
+    plot_name = f"{args.dataset}_{args.backbone}"
+    plot_pareto_accuracy_memory(results_summary, dataset_name=plot_name)
     if forgetting_data:
-        plot_forgetting_curves(forgetting_data, dataset_name=args.dataset)
+        plot_forgetting_curves(forgetting_data, dataset_name=plot_name)
 
 if __name__ == "__main__":
     main()

@@ -264,7 +264,8 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
 
     # Plot memory trace immediately after training so it's always saved,
     # not just during the benchmark run.
-    plot_memory_trace(memory_trace, dataset_name=args.dataset)
+    plot_name = f"{args.dataset}_{args.backbone}"
+    plot_memory_trace(memory_trace, dataset_name=plot_name)
 
     # Compare memory footprint against the two extreme baselines:
     # naive replay (every feature vector) and pure NCM (one mean per class).
@@ -362,7 +363,7 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
         memory_trace,
         n_classes=_n_classes,
         feature_dim=_feature_dim,
-        dataset_name=args.dataset,
+        dataset_name=plot_name,
         bio_accuracy=hybrid_acc,
         ncm_accuracy=ncm_acc_val,
         total_train_samples=len(X_train),
