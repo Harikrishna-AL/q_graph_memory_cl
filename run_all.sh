@@ -38,14 +38,14 @@ echo " 🚀 STEP 2: RUNNING EXPERIMENTS"
 echo "=================================================="
 
 # Grid Definition
-DATASETS=("tinyimagenet" "imagenet_r" "domainnet_real")
-BACKBONES=("dinov2_giant" "siglip" "resnet50")
+DATASETS=("tinyimagenet" "imagenet_r" "objectnet")
+BACKBONES=("resnet50" "dinov3" "siglip2")
 
 export PYTHONUNBUFFERED=1
 
 for dataset in "${DATASETS[@]}"; do
     for backbone in "${BACKBONES[@]}"; do
-        LOG_FILE="results/story_${dataset}_${backbone}.log"
+        LOG_FILE="results/ablation_${dataset}_${backbone}.log"
         
         echo "--------------------------------------------------"
         echo "▶️ Launching: Dataset=[$dataset] | Backbone=[$backbone]"
@@ -53,12 +53,9 @@ for dataset in "${DATASETS[@]}"; do
         echo "--------------------------------------------------"
         
         # We tee the output so you can watch it live while saving it!
-        python run_paper_story.py \
+        python run_ablations.py \
             --dataset "$dataset" \
             --backbone "$backbone" \
-            --no-bio-projection \
-            --no-bio-mahalanobis \
-            --bio_dynamic_budget_floor 0.25 \
             | tee "$LOG_FILE"
             
         echo "✅ Finished: $dataset + $backbone"
