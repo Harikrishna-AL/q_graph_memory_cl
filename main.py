@@ -46,19 +46,56 @@ def set_seed(seed):
 
 
 def get_model_memory_usage(model):
-    """Calculates the memory footprint of the model state in MB."""
+    """Calculates the memory footprint of the model state in MB.
+    Mirrors _snapshot_memory in learner.py for consistency."""
     mem_bytes = 0
-    # 1. Episodic Nodes
+
+    # 1. Episodic Nodes + metadata tensors
     if hasattr(model, "nodes"):
         mem_bytes += model.nodes.element_size() * model.nodes.nelement()
-    # 2. Long-term Prototypes
+    for attr in ["node_freq", "node_strength", "node_consistency", "node_fidelity", "node_labels"]:
+        t = getattr(model, attr, None)
+        if t is not None and hasattr(t, "nelement"):
+            mem_bytes += t.element_size() * t.nelement()
+
+    # 2. Long-term Prototypes + Welford accumulators
     if hasattr(model, "_build_proto_tensor"):
         protos, _ = model._build_proto_tensor()
         if protos is not None:
             mem_bytes += protos.element_size() * protos.nelement()
+        # Welford running sums and M2
+        for store in [getattr(model, "_proto_sum", {}), getattr(model, "_proto_m2", {})]:
+            for t in store.values():
+                if hasattr(t, "nelement"):
+                    mem_bytes += t.element_size() * t.nelement()
     elif hasattr(model, "prototypes"):
         mem_bytes += model.prototypes.element_size() * model.prototypes.nelement()
-    # 3. Support for legacy ContinualGraph if needed
+
+    # 3. Projection matrix
+    if getattr(model, "proj_matrix", None) is not None:
+        mem_bytes += model.proj_matrix.element_size() * model.proj_matrix.nelement()
+
+    # 4. Alignment layer parameters
+    if hasattr(model, "align_layer"):
+        for p in model.align_layer.parameters():
+            mem_bytes += p.element_size() * p.nelement()
+
+    # 5. ETF matrix
+    if getattr(model, "_etf_matrix", None) is not None:
+        mem_bytes += model._etf_matrix.element_size() * model._etf_matrix.nelement()
+
+    # 6. RLA accumulators
+    for attr in ["_RLA_A", "_RLA_B", "_RLA_P"]:
+        t = getattr(model, attr, None)
+        if t is not None and hasattr(t, "nelement"):
+            mem_bytes += t.element_size() * t.nelement()
+
+    # 7. Class subspaces
+    for t in getattr(model, "_class_subspaces", {}).values():
+        if hasattr(t, "nelement"):
+            mem_bytes += t.element_size() * t.nelement()
+
+    # 8. Support for legacy ContinualGraph if needed
     if hasattr(model, "codebooks"):
         for cb in model.codebooks:
             mem_bytes += cb.element_size() * cb.nelement()
@@ -110,7 +147,7 @@ def split_stream_and_val(features, labels, val_ratio):
 def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     """
     Runs one full experiment: Data Split -> Train -> Eval.
-    Returns: accuracy (float), memory (MB)
+    Returns: accuracy (float), memory (MB), historical_matrix (np.ndarray)
     """
     print(f"\n🌱 --- Starting Run with Seed: {seed} ---")
     set_seed(seed)
@@ -235,10 +272,14 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
     _n_classes = Config.N_TASKS * Config.CLASSES_PER_TASK
     _feature_dim = Config.FEATURE_DIM  # set by load_backbone(); backbone-agnostic
 
-    # 4. Measure Memory Usage
+    # 4. Measure Memory Usage (authoritative, post-training)
     bio_mem = get_model_memory_usage(bio_model)
     mem_usage = bio_mem
     print(f"   🧠 Bio-Graph Memory Footprint: {bio_mem:.2f} MB")
+
+    # Sync the memory trace's last entry so the plot matches this exact value
+    if memory_trace:
+        memory_trace[-1]["total_mb"] = bio_mem
 
     # 5. Tune alpha: episodic (System 1) vs prototype (System 2)
     # Optimization: If alpha is already set to a specific value (like 0.0 for NCM),
@@ -324,6 +365,7 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
         dataset_name=args.dataset,
         bio_accuracy=hybrid_acc,
         ncm_accuracy=ncm_acc_val,
+        total_train_samples=len(X_train),
     )
 
     # 8. Run Expensive Benchmarks (Only on the first seed/main run)
@@ -385,7 +427,7 @@ def run_single_experiment(seed, features, labels, args, run_benchmarks=False):
         print(f"   Bio-Graph is {ratio_vs_rehearsal:.1f}× smaller than Rehearsal NCM")
         print("─" * 57)
 
-    return hybrid_acc, mem_usage
+    return hybrid_acc, mem_usage, np.array(historical_matrix) if historical_matrix else None
 
 
 # ==============================================================================

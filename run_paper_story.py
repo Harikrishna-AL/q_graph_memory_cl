@@ -10,7 +10,7 @@ from src.config import Config
 from src.model import load_backbone, extract_features, BioEpisodicGraph, load_cached_features, save_cached_features, _BACKBONE_DIMS
 from src.data_utils import get_dataloader
 from src.learner import train_bio_graph
-from src.evaluators import _run_hybrid_eval_loop, compute_average_accuracy, compute_average_forgetting, predict_dual_system
+from src.evaluators import _run_hybrid_eval_loop, compute_average_accuracy, compute_average_forgetting, predict_dual_system, plot_pareto_accuracy_memory, plot_forgetting_curves, plot_backbone_gain_over_ncm
 from src.baselines import NaiveReplayBuffer, RehearsalMLPBuffer, NodeBankReplayBuffer
 from main import get_model_memory_usage, set_seed, run_single_experiment
 
@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument("--use_etf", action="store_true", help="Anchor prototypes to a fixed Equiangular Tight Frame (ETF)")
 
     parser.add_argument("--stages", nargs="+", type=str, default=["0", "1", "2", "2b", "3", "4", "5", "5b"], 
-                        help="Stages to run: 0 (Vanilla NCM), 1 (Standard NCM), 2 (Replay), 2b (ER+MLP), 3 (Nodes), 4 (Sweeps), 5 (TQM Full), 5b (TQM+Linear)")
+                        help="Stages to run: 0 (Vanilla NCM), 1 (Standard NCM), 2 (Replay), 2b (ER+MLP), 3 (Nodes), 4 (Sweeps), 5 (MAYA Full), 5b (MAYA+Linear)")
     
     return parser.parse_args()
 
@@ -137,6 +137,7 @@ def main():
     y_test_full = labels[test_indices]
     
     results_summary = {}
+    forgetting_data = {}  # {method_name: historical_matrix} for forgetting plots
 
     def run_cil_stream(name, eval_func, train_func=None):
         print(f"\n🚀 --- STAGE: {name} ---")
@@ -159,7 +160,7 @@ def main():
         hist_np = np.array(historical_matrix)
         aia = compute_average_accuracy(hist_np)
         print(f"✅ [{name}] AIA: {aia*100:.2f}% | Mem: {memory_usage_mb:.2f} MB")
-        return aia, memory_usage_mb
+        return aia, memory_usage_mb, hist_np
 
     # STAGE 0: Vanilla NCM (No normalization, just raw Euclidean distance to mean)
     if "0" in args.stages:
@@ -186,6 +187,7 @@ def main():
             return accs
         res = run_cil_stream("0. Vanilla NCM", eval_s0, train_s0)
         results_summary["0"] = res
+        forgetting_data["Vanilla NCM"] = res[2]
 
     # STAGE 1
     if "1" in args.stages:
@@ -214,6 +216,7 @@ def main():
             return accs
         res = run_cil_stream("1. Standard NCM", eval_s1, train_s1)
         results_summary["1"] = res
+        forgetting_data["NCM"] = res[2]
 
     # STAGE 2
     if "2" in args.stages:
@@ -227,6 +230,7 @@ def main():
             return [ (preds[(y_np >= t*CPT) & (y_np < (t+1)*CPT)] == y_np[(y_np >= t*CPT) & (y_np < (t+1)*CPT)]).mean() if ((y_np >= t*CPT) & (y_np < (t+1)*CPT)).any() else 0.0 for t in range(tid+1) ]
         res = run_cil_stream("2. Basic Replay", eval_s2, train_s2)
         results_summary["2"] = res
+        forgetting_data["Replay"] = res[2]
 
     # STAGE 2b
     if "2b" in args.stages:
@@ -240,6 +244,7 @@ def main():
             return [ (preds[(y_np >= t*CPT) & (y_np < (t+1)*CPT)] == y_np[(y_np >= t*CPT) & (y_np < (t+1)*CPT)]).mean() if ((y_np >= t*CPT) & (y_np < (t+1)*CPT)).any() else 0.0 for t in range(tid+1) ]
         res = run_cil_stream("2b. Optimized Replay", eval_s2b, train_s2b)
         results_summary["2b"] = res
+        forgetting_data["ER+MLP"] = res[2]
 
     # STAGE 3
     if "3" in args.stages:
@@ -252,6 +257,7 @@ def main():
             return _run_hybrid_eval_loop(s3_model, torch.tensor(x, dtype=torch.float32).to(Config.DEVICE), torch.tensor(y, dtype=torch.long).to(Config.DEVICE), alpha=1.0)[:tid+1]
         res = run_cil_stream("3. Node-Replay Only", eval_s3, train_s3)
         results_summary["3"] = res
+        forgetting_data["Node-Replay"] = res[2]
 
     # STAGE 4
     if "4" in args.stages:
@@ -264,7 +270,7 @@ def main():
                 nonlocal m; m, _ = train_bio_graph(x, y, model=m, verbose=False); return get_model_memory_usage(m)
             def e_s4(tid, x, y): 
                 return _run_hybrid_eval_loop(m, torch.tensor(x, dtype=torch.float32).to(Config.DEVICE), torch.tensor(y, dtype=torch.long).to(Config.DEVICE), alpha=1.0)[:tid+1]
-            aia, mem = run_cil_stream(f"Sweep Floor={f}", e_s4, t_s4)
+            aia, mem, hist = run_cil_stream(f"Sweep Floor={f}", e_s4, t_s4)
             if aia > best_aia: best_aia, best_mem, best_f = aia, mem, f
         results_summary["4"] = (best_aia, best_mem, best_f)
 
@@ -277,8 +283,10 @@ def main():
             consolidate_every=1, consolidation_lambda=0.1, alpha=default_alpha, bio_node_temp=node_temp,
             consolidation_mode=args.consolidation_mode, use_etf=args.use_etf,
             pap_weight=args.pap_weight, align_dim=args.align_dim, subspace_rank=args.subspace_rank)
-        aia, mem = run_single_experiment(42, features, labels, s5_args, run_benchmarks=False)
+        aia, mem, hist_s5 = run_single_experiment(42, features, labels, s5_args, run_benchmarks=False)
         results_summary["5"] = (aia, mem)
+        if hist_s5 is not None:
+            forgetting_data["MAYA"] = hist_s5
 
     # STAGE 5b
     if "5b" in args.stages:
@@ -292,7 +300,8 @@ def main():
             p = buf5b.predict(x); y_np = np.array(y)
             return [ float(np.mean(p[(y_np >= t*CPT) & (y_np < (t+1)*CPT)] == y_np[(y_np >= t*CPT) & (y_np < (t+1)*CPT)])) if ((y_np >= t*CPT) & (y_np < (t+1)*CPT)).any() else 0.0 for t in range(tid+1) ]
         res = run_cil_stream("5b. TQM + Linear Head", e_s5b, t_s5b)
-        results_summary["5b"] = res
+        results_summary["5b"] = res[:2]
+        forgetting_data["MAYA+Linear"] = res[2]
 
     # FINAL SUMMARY
     print("\n==================================================")
@@ -300,10 +309,15 @@ def main():
     print("==================================================")
     for k in ["0", "1", "2", "2b", "3", "4", "5", "5b"]:
         if k in results_summary:
-            label = {"0":"Vanilla NCM", "1":"Standard NCM", "2":"Replay", "2b":"ER+MLP", "3":"Nodes", "4":"Sweeps", "5":"TQM Full", "5b":"TQM+Linear"}[k]
+            label = {"0":"Vanilla NCM", "1":"Standard NCM", "2":"Replay", "2b":"ER+MLP", "3":"Nodes", "4":"Sweeps", "5":"MAYA Full", "5b":"MAYA+Linear"}[k]
             aia, mem = results_summary[k][:2]
             print(f"{k}. {label:<20} | AIA: {aia*100:.1f}% | Mem: {mem:.1f} MB" + (f" [F={results_summary[k][2]:.2f}]" if k=="4" else ""))
     print("==================================================")
+
+    # ── Generate paper plots ──────────────────────────────────────────────
+    plot_pareto_accuracy_memory(results_summary, dataset_name=args.dataset)
+    if forgetting_data:
+        plot_forgetting_curves(forgetting_data, dataset_name=args.dataset)
 
 if __name__ == "__main__":
     main()

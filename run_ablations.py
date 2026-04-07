@@ -75,8 +75,15 @@ def run_experiment(backbone, dataset, **overrides):
         setattr(args, k, v)
     
     # Run
-    aia, mem = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
-    return aia, mem
+    aia, mem, hist_matrix = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
+    
+    # Calculate forgetting if matrix exists
+    forgetting = 0.0
+    if hist_matrix is not None:
+        from src.evaluators import compute_average_forgetting
+        forgetting = compute_average_forgetting(hist_matrix)
+        
+    return aia, mem, forgetting
 
 def main():
     parser = argparse.ArgumentParser()
@@ -93,25 +100,25 @@ def main():
     
     # a) NCM Baseline
     # Forces alpha=0 and disables sleep-phase refinement
-    aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
-    results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem})
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
+    results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem, "forgetting": forge})
     
     # b) + Analytic ETF
     # System 2 only, but with refinement enabled
-    aia, mem = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
-    results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem})
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
+    results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem, "forgetting": forge})
     
     # c) Full MAYA (Hybrid)
     # The default state: Hybrid System 1+2
-    aia, mem = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
-    results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem})
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
+    results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem, "forgetting": forge})
 
     # --- 2. Lambda Sensitivity Sweep ---
     print("\n🚀 [2/3] Lambda Sensitivity Sweep...")
     results["lambda_sweep"] = []
     for l in [0.001, 0.01, 0.1, 0.5, 0.9]:
-        aia, mem = run_experiment(args.backbone, args.dataset, consolidation_lambda=l)
-        results["lambda_sweep"].append({"lambda": l, "aia": aia, "mem": mem})
+        aia, mem, forge = run_experiment(args.backbone, args.dataset, consolidation_lambda=l)
+        results["lambda_sweep"].append({"lambda": l, "aia": aia, "mem": mem, "forgetting": forge})
 
     # --- 3. Node Count Sweep ---
     print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
@@ -119,8 +126,8 @@ def main():
     for k in [1, 16, 32, 64, 128, 256]:
         # CRITICAL: We force alpha=0.5 to prove System 1 resolution helps.
         # If we let it tune to 0, we see no difference.
-        aia, mem = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
-        results["k_sweep"].append({"k": k, "aia": aia, "mem": mem})
+        aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
+        results["k_sweep"].append({"k": k, "aia": aia, "mem": mem, "forgetting": forge})
 
     # Final Save
     out_path = f"results/ablation_{args.backbone}_{args.dataset}.json"

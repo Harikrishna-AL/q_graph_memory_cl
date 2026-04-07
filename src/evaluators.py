@@ -248,97 +248,200 @@ def _plot_results(clean_accs, occ_accs):
     print(f"📈 Plot saved to outputs/results_plot.png & .svg")
 
 
-def _downsample_to_task_boundaries(snapshots, n_tasks=None):
-    """
-    Reduce per-block snapshots to one per task transition.
-    Groups by evenly splitting the snapshot list into n_tasks buckets
-    and keeping the LAST snapshot from each bucket (= end-of-task state).
-    """
-    if not snapshots:
-        return snapshots
-    if n_tasks is None:
-        n_tasks = getattr(Config, "N_TASKS", 10)
-    n_tasks = max(1, int(n_tasks))
-    if len(snapshots) <= n_tasks:
-        return snapshots  # already sparse enough
-    bucket_size = len(snapshots) / n_tasks
-    result = []
-    for t in range(n_tasks):
-        end_idx = int(round((t + 1) * bucket_size)) - 1
-        end_idx = min(end_idx, len(snapshots) - 1)
-        result.append(snapshots[end_idx])
-    return result
-
-
 def plot_memory_trace(memory_trace, dataset_name="dataset"):
     """
     Two-panel figure showing how memory evolves block-by-block during training.
-    Downsampled to one point per task for a clean plot.
+
+    Top panel — Memory in MB
+        Green line : peak memory right after each online step (before pruning)
+        Red line   : post-sleep memory after each consolidation (after pruning)
+        Shaded fill: memory recovered by consolidation each block
+        Grey band  : constant baseline — prototypes + projection matrix
+
+    Bottom panel — Episodic node count
+        Green line : nodes after online step
+        Red line   : nodes after consolidation
+        Shaded fill: nodes pruned each block
+
+    The sawtooth pattern reveals the grow-then-prune rhythm of the bio cycle.
     """
     if not memory_trace:
         print("⚠️  Memory trace is empty — nothing to plot.")
         return
 
-    online_all = [s for s in memory_trace if s["phase"] == "after_online"]
-    consol_all = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+    online = [s for s in memory_trace if s["phase"] == "after_online"]
+    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
 
-    if not consol_all:
-        consol_all = online_all
+    if not online:
+        print("⚠️  No 'after_online' snapshots found.")
+        return
 
-    # Downsample to one point per task
-    consol = _downsample_to_task_boundaries(consol_all)
-    online = _downsample_to_task_boundaries(online_all)
+    # Use block index as x so both phases align on the same tick
+    online_x = [s["block"] for s in online]
+    consol_x = [s["block"] for s in consol]
 
-    # Use consolidation points as our 'Stable baseline'
-    x = list(range(1, len(consol) + 1))  # Task 1, 2, 3, ...
-    y_mem = [s["total_mb"] for s in consol]
-    y_nodes = [s["n_nodes"] for s in consol]
-    
-    # Floor: proto + proj (baseline memory)
-    floor_mb = consol[0]["proto_mb"] + consol[0]["proj_mb"]
+    online_mem = [s["total_mb"] for s in online]
+    consol_mem = [s["total_mb"] for s in consol]
+    online_nodes = [s["n_nodes"] for s in online]
+    consol_nodes = [s["n_nodes"] for s in consol]
+
+    # Constant floor: prototype + projection memory (take from first snapshot)
+    floor_mb = online[0]["proto_mb"] + online[0]["proj_mb"]
+
+    # ── x-axis tick labels: block index with sample count every ~10 blocks ──
+    step = max(1, len(online_x) // 10)
+    tick_positions = online_x[::step]
+    tick_labels = [
+        f"{s['block']}\n({s['samples_seen'] // 1000}k)" for s in online[::step]
+    ]
 
     fig, (ax_mem, ax_nodes) = plt.subplots(
-        2, 1, figsize=(12, 8), sharex=True, gridspec_kw={"hspace": 0.2}
+        2, 1, figsize=(13, 7), sharex=False, gridspec_kw={"hspace": 0.45}
     )
 
-    # ── TOP: Memory (MB) ───────────────────────────────────────────────────
-    # Smooth stable line (The long-term footprint)
-    ax_mem.plot(x, y_mem, 'o-', color='#d62728', linewidth=2.5, label="Stable Memory (Post-Sleep)")
-    
-    # Grey baseline floor
-    ax_mem.axhline(floor_mb, color="grey", linestyle="--", alpha=0.5, label=f"Base (≈{floor_mb:.1f} MB)")
+    # ── TOP: Memory ──────────────────────────────────────────────────────────
+    ax_mem.plot(
+        online_x,
+        online_mem,
+        "o-",
+        color="#2ca02c",
+        linewidth=1.8,
+        markersize=4,
+        alpha=0.85,
+        label="After online step (peak)",
+    )
+    if consol_mem:
+        ax_mem.plot(
+            consol_x,
+            consol_mem,
+            "s-",
+            color="#d62728",
+            linewidth=1.8,
+            markersize=4,
+            alpha=0.85,
+            label="After consolidation (post-sleep)",
+        )
+        # Shade the gap only where both series share a block index
+        shared_blocks = sorted(set(online_x) & set(consol_x))
+        online_dict = {s["block"]: s["total_mb"] for s in online}
+        consol_dict = {s["block"]: s["total_mb"] for s in consol}
+        shared_peak = [online_dict[b] for b in shared_blocks]
+        shared_post = [consol_dict[b] for b in shared_blocks]
+        ax_mem.fill_between(
+            shared_blocks,
+            shared_post,
+            shared_peak,
+            alpha=0.12,
+            color="#2ca02c",
+            label="Memory freed by consolidation",
+        )
 
-    # Find the peaks to shade the online growth
-    online_dict = {s["block"]: s["total_mb"] for s in online}
-    peaks = [online_dict.get(b, m) for b, m in zip(x, y_mem)]
-    ax_mem.fill_between(x, y_mem, peaks, color='#2ca02c', alpha=0.2, label="Temporary Online Growth")
+    # Grey band for constant floor
+    ax_mem.axhline(
+        floor_mb,
+        color="grey",
+        linewidth=1.2,
+        linestyle="--",
+        alpha=0.6,
+        label=f"Constant base (proto + proj ≈ {floor_mb:.2f} MB)",
+    )
 
-    ax_mem.set_ylabel("Memory (MB)", fontsize=12)
-    ax_mem.set_title(f"Memory Evolution: {dataset_name.upper()}", fontsize=14, fontweight="bold")
-    ax_mem.legend(loc="upper left", fontsize=10)
+    ax_mem.set_ylabel("Memory (MB)", fontsize=11)
+    ax_mem.set_title(
+        f"Memory Footprint During Training — {dataset_name}",
+        fontsize=13,
+        fontweight="bold",
+    )
+    ax_mem.set_xticks(tick_positions)
+    ax_mem.set_xticklabels(tick_labels, fontsize=8)
+    ax_mem.set_xlabel("Block  (samples seen)", fontsize=10)
+    ax_mem.legend(fontsize=9, loc="upper left")
     ax_mem.grid(True, linestyle="--", alpha=0.3)
 
-    # ── BOTTOM: Node Count ──────────────────────────────────────────────────
-    # Smooth stable line
-    ax_nodes.plot(x, y_nodes, 's-', color='#1f77b4', linewidth=2.5, label="Episodic Nodes (Post-Sleep)")
-    
-    # Shade the pruned nodes
-    online_node_dict = {s["block"]: s["n_nodes"] for s in online}
-    node_peaks = [online_node_dict.get(b, n) for b, n in zip(x, y_nodes)]
-    ax_nodes.fill_between(x, y_nodes, node_peaks, color='#1f77b4', alpha=0.15, label="Nodes Pruned during Sleep")
+    # Annotate final values
+    ax_mem.annotate(
+        f"  {online_mem[-1]:.2f} MB",
+        xy=(online_x[-1], online_mem[-1]),
+        fontsize=8,
+        color="#2ca02c",
+        va="center",
+    )
+    if consol_mem:
+        ax_mem.annotate(
+            f"  {consol_mem[-1]:.2f} MB",
+            xy=(consol_x[-1], consol_mem[-1]),
+            fontsize=8,
+            color="#d62728",
+            va="center",
+        )
 
-    ax_nodes.set_ylabel("Episodic Node Count", fontsize=12)
-    ax_nodes.set_xlabel("Task", fontsize=12)
-    ax_nodes.legend(loc="upper left", fontsize=10)
+    # ── BOTTOM: Node count ────────────────────────────────────────────────────
+    ax_nodes.plot(
+        online_x,
+        online_nodes,
+        "o-",
+        color="#2ca02c",
+        linewidth=1.8,
+        markersize=4,
+        alpha=0.85,
+        label="After online step",
+    )
+    if consol_nodes:
+        ax_nodes.plot(
+            consol_x,
+            consol_nodes,
+            "s-",
+            color="#d62728",
+            linewidth=1.8,
+            markersize=4,
+            alpha=0.85,
+            label="After consolidation",
+        )
+        shared_on_nodes = [online_dict[b] for b in shared_blocks]  # reuse dict trick
+        # recompute with node counts
+        online_node_dict = {s["block"]: s["n_nodes"] for s in online}
+        consol_node_dict = {s["block"]: s["n_nodes"] for s in consol}
+        shared_peak_n = [online_node_dict[b] for b in shared_blocks]
+        shared_post_n = [consol_node_dict[b] for b in shared_blocks]
+        ax_nodes.fill_between(
+            shared_blocks,
+            shared_post_n,
+            shared_peak_n,
+            alpha=0.12,
+            color="#2ca02c",
+            label="Nodes pruned by consolidation",
+        )
+
+    ax_nodes.set_ylabel("Episodic node count", fontsize=11)
+    ax_nodes.set_xlabel("Block  (samples seen)", fontsize=10)
+    ax_nodes.set_xticks(tick_positions)
+    ax_nodes.set_xticklabels(tick_labels, fontsize=8)
+    ax_nodes.legend(fontsize=9, loc="upper left")
     ax_nodes.grid(True, linestyle="--", alpha=0.3)
 
-    plt.tight_layout()
+    # Annotate final node counts
+    ax_nodes.annotate(
+        f"  {online_nodes[-1]}",
+        xy=(online_x[-1], online_nodes[-1]),
+        fontsize=8,
+        color="#2ca02c",
+        va="center",
+    )
+    if consol_nodes:
+        ax_nodes.annotate(
+            f"  {consol_nodes[-1]}",
+            xy=(consol_x[-1], consol_nodes[-1]),
+            fontsize=8,
+            color="#d62728",
+            va="center",
+        )
+
     os.makedirs("outputs", exist_ok=True)
     out_base = f"outputs/memory_trace_{dataset_name}"
-    plt.savefig(f"{out_base}.png", dpi=300)
-    plt.savefig(f"{out_base}.svg", format="svg")
+    plt.savefig(f"{out_base}.png", dpi=200, bbox_inches="tight")
+    plt.savefig(f"{out_base}.svg", format="svg", bbox_inches="tight")
     plt.close()
-    print(f"✅ Cleaned memory trace saved → {out_base}.png / .svg")
+    print(f"✅ Memory trace saved → {out_base}.png / .svg")
 
 
 def plot_memory_comparison(
@@ -349,18 +452,19 @@ def plot_memory_comparison(
     bio_accuracy=None,
     ncm_accuracy=None,
     replay_accuracy=None,
+    total_train_samples=None,
 ):
     """
     Compares memory requirements of three approaches over training time.
 
     Naive Replay Buffer  — stores every feature vector seen (upper bound)
-    Bio-Inspired Graph   — actual measured memory from the training trace
+    MAYA Graph           — actual measured memory from the training trace
     NCM class means      — stores only one mean prototype per class (lower bound)
 
     Layout
     ------
     Main axes  : log-scale y, all three methods visible across 3 orders of magnitude
-    Inset axes : linear-scale zoom into the NCM–Bio region (the real tradeoff)
+    Inset axes : linear-scale zoom into the NCM–MAYA region (the real tradeoff)
     Stats box  : final memory values and compression ratios
 
     Parameters
@@ -377,16 +481,16 @@ def plot_memory_comparison(
         print("⚠️  Memory trace is empty — nothing to plot.")
         return
 
-    # ── Extract post-consolidation snapshots, downsampled to one per task
-    consol_all = [s for s in memory_trace if s["phase"] == "after_consolidation"]
-    if not consol_all:
-        consol_all = memory_trace  # fallback: no consolidation was run
-    consol = _downsample_to_task_boundaries(consol_all)
+    # ── Extract post-consolidation snapshots (the stable, post-sleep footprint)
+    consol = [s for s in memory_trace if s["phase"] == "after_consolidation"]
+    if not consol:
+        consol = memory_trace  # fallback: no consolidation was run
 
     bio_x = np.array([s["samples_seen"] for s in consol])
     bio_y = np.array([s["total_mb"] for s in consol])
 
-    total_samples = int(max(s["samples_seen"] for s in memory_trace))
+    total_samples_trace = int(max(s["samples_seen"] for s in memory_trace))
+    total_samples = total_train_samples if total_train_samples else total_samples_trace
     bytes_per_vec = feature_dim * 4  # float32
 
     # ── Theoretical baselines over the full x range
@@ -409,7 +513,7 @@ def plot_memory_comparison(
 
     # ── Colours
     C_REPLAY = "#d62728"  # red
-    C_BIO = "#1f77b4"  # blue
+    C_MAYA = "#1f77b4"  # blue
     C_NCM = "#2ca02c"  # green
 
     fig = plt.figure(figsize=(13, 6))
@@ -429,11 +533,11 @@ def plot_memory_comparison(
         bio_x,
         bio_y,
         "o-",
-        color=C_BIO,
+        color=C_MAYA,
         linewidth=2.2,
         markersize=4,
         zorder=5,
-        label=f"Bio-Inspired Graph — Ours  (post-sleep)",
+        label=f"MAYA — Ours  (post-sleep)",
     )
     ax.plot(
         x_full,
@@ -484,7 +588,7 @@ def plot_memory_comparison(
         f" {bio_final:.1f} MB",
         xy=(total_samples, bio_final),
         fontsize=8.5,
-        color=C_BIO,
+        color=C_MAYA,
         va="center",
     )
     ax.annotate(
@@ -525,7 +629,7 @@ def plot_memory_comparison(
             xytext=(0, 12),
             textcoords="offset points",
             fontsize=7.5,
-            color=C_BIO,
+            color=C_MAYA,
             ha="center",
         )
 
@@ -534,11 +638,11 @@ def plot_memory_comparison(
         "Final memory",
         "─" * 26,
         f"Replay Buffer :  {replay_final:>7.1f} MB",
-        f"Bio Graph     :  {bio_final:>7.1f} MB",
+        f"MAYA          :  {bio_final:>7.1f} MB",
         f"NCM           :  {ncm_final:>7.3f} MB",
         "─" * 26,
-        f"Bio is {ratio_bio_vs_replay:>5.1f}× smaller than Replay",
-        f"NCM is {ratio_bio_vs_ncm:>5.1f}× smaller than Bio",
+        f"MAYA is {ratio_bio_vs_replay:>5.1f}× smaller than Replay",
+        f"NCM is {ratio_bio_vs_ncm:>5.1f}× smaller than MAYA",
     ]
     stats_text = "\n".join(stats_lines)
     ax.text(
@@ -564,7 +668,7 @@ def plot_memory_comparison(
         ax_in = ax.inset_axes([0.54, 0.08, 0.42, 0.40])
 
         ax_in.plot(x_full, replay_y, "-", color=C_REPLAY, linewidth=1.4, alpha=0.35)
-        ax_in.plot(bio_x, bio_y, "o-", color=C_BIO, linewidth=1.6, markersize=3)
+        ax_in.plot(bio_x, bio_y, "o-", color=C_MAYA, linewidth=1.6, markersize=3)
         ax_in.plot(x_full, ncm_y, "--", color=C_NCM, linewidth=1.4)
 
         ax_in.set_ylim(0, y_top)
@@ -575,18 +679,17 @@ def plot_memory_comparison(
             fontsize=6.5,
         )
         ax_in.set_ylabel("Memory (MB)", fontsize=7)
-        ax_in.set_title("Zoom: NCM vs Bio", fontsize=7.5, pad=3)
+        ax_in.set_title("Zoom: NCM vs MAYA", fontsize=7.5, pad=3)
         ax_in.yaxis.set_tick_params(labelsize=6.5)
         ax_in.grid(True, linestyle="--", alpha=0.25)
 
-        # Shade Bio–NCM gap in the inset
         ax_in.fill_between(
             x_full,
             ncm_y,
             np.minimum(replay_y, y_top),
             where=(np.minimum(replay_y, y_top) >= ncm_y),
             alpha=0.06,
-            color=C_BIO,
+            color=C_MAYA,
         )
 
     plt.tight_layout()
@@ -973,304 +1076,6 @@ def compare_interpretability(model, features, labels, dataset, num_samples=2000)
     print("✅ Saved REAL interpretability plot to outputs/interpretability_real.png")
 
 
-# def apply_feature_occlusion(features, p_occlusion):
-#     if p_occlusion <= 0.0: return features
-#     X_occ = features.copy()
-#     N, D = X_occ.shape
-#     n_mask = int(D * p_occlusion)
-#     if n_mask > 0: X_occ[:, -n_mask:] = 0.0
-#     return X_occ
-
-# def run_occlusion_experiment(graph, X_train, y_train, X_test, y_test, evaluate_graph_fn):
-#     print("\n🛡️ Starting Occlusion Robustness Stress Test...")
-
-#     X_train_np = X_train if isinstance(X_train, np.ndarray) else X_train.cpu().numpy()
-#     y_train_np = y_train if isinstance(y_train, np.ndarray) else y_train.cpu().numpy()
-#     X_test_np  = X_test  if isinstance(X_test, np.ndarray) else X_test.cpu().numpy()
-#     y_test_np  = y_test  if isinstance(y_test, np.ndarray) else y_test.cpu().numpy()
-
-#     ncm = NearestCentroid()
-#     ncm.fit(X_train_np, y_train_np)
-
-#     linear = SGDClassifier(loss='log_loss', max_iter=1000, tol=1e-3, random_state=42)
-#     linear.fit(X_train_np, y_train_np)
-
-#     levels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-#     acc_npgm, acc_ncm, acc_lin = [], [], []
-
-#     print(f"   Testing levels: {levels}")
-
-#     for p in levels:
-#         X_test_corrupt_np = apply_feature_occlusion(X_test_np, p)
-#         score_ncm = ncm.score(X_test_corrupt_np, y_test_np)
-#         score_lin = linear.score(X_test_corrupt_np, y_test_np)
-
-#         device = getattr(graph, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-#         X_test_corrupt_tensor = torch.tensor(X_test_corrupt_np, dtype=torch.float32).to(device)
-#         y_test_tensor = torch.tensor(y_test_np, dtype=torch.long).to(device)
-
-#         graph_metrics = evaluate_graph_fn(graph, X_test_corrupt_tensor, y_test_tensor)
-#         score_npgm = graph_metrics['final_accuracy']
-
-#         acc_ncm.append(score_ncm)
-#         acc_lin.append(score_lin)
-#         acc_npgm.append(score_npgm)
-
-#         print(f"   [Occlusion {int(p*100)}%] NPGM: {score_npgm:.2%} | NCM: {score_ncm:.2%} | Linear: {score_lin:.2%}")
-
-#     plt.figure(figsize=(8, 6))
-#     plt.plot(levels, [x * 100 for x in acc_npgm], 'o-', linewidth=3, label='TQM (Ours)')
-#     plt.plot(levels, [x * 100 for x in acc_ncm], 's--', linewidth=2, label='NCM (Baseline)')
-#     plt.plot(levels, [x * 100 for x in acc_lin], 'x:', linewidth=2, label='Linear (Parametric)')
-
-#     plt.title("Robustness to Occlusion (The 'Hard Test')", fontsize=14)
-#     plt.xlabel("Percentage of Features Masked", fontsize=12)
-#     plt.ylabel("Accuracy (%)", fontsize=12)
-#     plt.grid(True, linestyle='--', alpha=0.5)
-#     plt.legend(fontsize=11)
-
-#     path = 'outputs/robustness_curve.png'
-#     plt.savefig(path)
-#     print(f"✅ Robustness curve saved to {path}")
-
-#     return acc_npgm, acc_ncm, acc_lin
-
-# ==============================================================================
-# ICML TABLE 2 & FIGURE 1: QUANTITATIVE OCCLUSION
-# ==============================================================================
-
-# def apply_feature_occlusion(features, occlusion_ratio):
-#     """
-#     Simulates Spatial CutOut Occlusion on DINOv2 features.
-#     If features are patch-aggregated, zeroing out random subsets mimics spatial masking.
-#     """
-#     if occlusion_ratio <= 0.0:
-#         return features.clone() if torch.is_tensor(features) else features.copy()
-
-#     X_occ = features.clone() if torch.is_tensor(features) else features.copy()
-#     N, D = X_occ.shape
-#     num_masked = int(D * occlusion_ratio)
-
-#     # Mask random dimensions for each sample to simulate random spatial CutOut
-#     for i in range(N):
-#         mask_indices = np.random.choice(D, num_masked, replace=False)
-#         X_occ[i, mask_indices] = 0.0
-
-#     return X_occ
-
-
-def run_icml_occlusion_benchmark(
-    graph_model, X_train, y_train, X_test, y_test, dataset_name, alpha=0.9
-):
-    """
-    Generates Table 2 and Figure 1 for the ICML Paper.
-    Compares NCM Baseline vs. TQM Graph under [0%, 10%, 30%, 50%, 75%] occlusion.
-    """
-    print("\n" + "=" * 50)
-    print(" 🛡️ RUNNING ICML OCCLUSION BENCHMARK (Table 2 & Fig 1)")
-    print("=" * 50)
-
-    # Standard ICML Occlusion Ratios
-    ratios = [0.0, 0.1, 0.3, 0.5, 0.75]
-
-    tqm_accs = []
-    ncm_accs = []
-
-    # Convert Data to NumPy for Sklearn
-    X_train_np = X_train.cpu().numpy() if torch.is_tensor(X_train) else X_train
-    y_train_np = y_train.cpu().numpy() if torch.is_tensor(y_train) else y_train
-    X_test_np = X_test.cpu().numpy() if torch.is_tensor(X_test) else X_test
-    y_test_np = y_test.cpu().numpy() if torch.is_tensor(y_test) else y_test
-
-    # THE FIX: Fit Standard NCM properly using the training data
-    ncm = NearestCentroid()
-    ncm.fit(X_train_np, y_train_np)
-
-    # Run Benchmark
-    for r in ratios:
-        # 1. Apply Occlusion
-        X_test_occ_np = apply_feature_occlusion(X_test_np, r)
-        X_test_occ_tensor = torch.tensor(X_test_occ_np, dtype=torch.float32).to(
-            graph_model.device
-        )
-
-        # 2. Evaluate NCM Baseline
-        ncm_preds = ncm.predict(X_test_occ_np)
-        ncm_acc = accuracy_score(y_test_np, ncm_preds)
-        ncm_accs.append(ncm_acc)
-
-        # 3. Evaluate TQM (hybrid dual-memory system)
-        tqm_preds = (
-            predict_dual_system(graph_model, X_test_occ_tensor, alpha=alpha)
-            .cpu()
-            .numpy()
-        )
-        tqm_acc = accuracy_score(y_test_np, tqm_preds)
-        tqm_accs.append(tqm_acc)
-
-        print(
-            f"   [Occlusion {int(r * 100)}%] -> TQM: {tqm_acc * 100:.1f}% | NCM: {ncm_acc * 100:.1f}%"
-        )
-
-    # --- GENERATE TABLE 2 (LaTeX) ---
-    print("\n📊 --- LATEX FOR TABLE 2 ---")
-    print(r"\begin{table}[h]")
-    print(r"\centering")
-    print(r"\begin{tabular}{l c c c c c}")
-    print(r"\toprule")
-    print(
-        r"\textbf{Method} & \textbf{0\% (Clean)} & \textbf{10\% Mask} & \textbf{30\% Mask} & \textbf{50\% Mask} & \textbf{75\% Mask} \\"
-    )
-    print(r"\midrule")
-    ncm_str = " & ".join([f"{a * 100:.1f}\\%" for a in ncm_accs])
-    tqm_str = " & ".join([f"{a * 100:.1f}\\%" for a in tqm_accs])
-    print(f"Standard NCM & {ncm_str} \\\\")
-    print(f"\\textbf{{TQM (Ours)}} & \\textbf{{{tqm_str}}} \\\\")
-    print(r"\bottomrule")
-    print(r"\end{tabular}")
-    print(
-        r"\caption{Performance under spatial occlusion. TQM retains superior robustness.}"
-    )
-    print(r"\end{table}")
-
-    # --- GENERATE FIGURE 1 (Line Graph) ---
-    os.makedirs("outputs", exist_ok=True)
-    plt.figure(figsize=(7, 5))
-    plt.plot(
-        ratios,
-        [a * 100 for a in tqm_accs],
-        "o-",
-        color="#2ca02c",
-        linewidth=3,
-        markersize=8,
-        label="TQM (Ours)",
-    )
-    plt.plot(
-        ratios,
-        [a * 100 for a in ncm_accs],
-        "s--",
-        color="#d62728",
-        linewidth=2,
-        markersize=6,
-        label="Standard NCM",
-    )
-
-    plt.axvline(x=0.5, color="gray", linestyle=":", alpha=0.5)
-    plt.text(0.51, 20, "50% Occlusion\n(Abstract Claim)", color="gray", fontsize=9)
-
-    plt.title("Fig 1: Accuracy vs. Occlusion Ratio", fontsize=14, fontweight="bold")
-    plt.xlabel("Occlusion Ratio", fontsize=12)
-    plt.ylabel("Classification Accuracy (%)", fontsize=12)
-    plt.ylim(0, 100)
-    plt.grid(True, linestyle="--", alpha=0.3)
-    plt.legend(fontsize=12)
-    plt.tight_layout()
-    plt.savefig("outputs/fig1_occlusion_line.png", dpi=300)
-    print("✅ Figure 1 saved to 'outputs/fig1_occlusion_line.png'")
-
-
-# ==============================================================================
-# ICML FIGURE 2: QUALITATIVE t-SNE
-# ==============================================================================
-
-# In evaluators.py
-
-# def generate_figure2_tsne(graph_model, ncm_centroids, X_test, y_test, target_class=0):
-#     """
-#     Figure 2: Shows that an Occluded Query drifts away from the Global NCM Centroid,
-#     but stays within the manifold boundary of the TQM visual words.
-#     """
-#     print("\n🎨 Generating Figure 2 (Qualitative t-SNE Visualization)...")
-
-#     X_test_np = X_test.cpu().numpy() if torch.is_tensor(X_test) else X_test
-#     y_test_np = y_test.cpu().numpy() if torch.is_tensor(y_test) else y_test
-
-#     # 1. Pick a single clean query from the target class
-#     class_indices = np.where(y_test_np == target_class)[0]
-#     if len(class_indices) == 0:
-#         print(f"⚠️ No test samples found for class {target_class}. Skipping Figure 2.")
-#         return
-
-#     query_idx = class_indices[0]
-#     query_clean = X_test_np[query_idx]
-
-#     # 2. Create the 50% Occluded version
-#     query_occ = apply_feature_occlusion(query_clean.reshape(1, -1), 0.75)[0]
-
-#     # 3. Gather components to plot
-#     ncm_centroid = ncm_centroids[target_class].cpu().numpy()
-
-#     # Cap background samples at 100
-#     background_samples = X_test_np[class_indices[:100]]
-#     num_bg = len(background_samples)
-
-#     # Reconstruct TQM Visual Words (Up to 50 nodes)
-#     num_tqm = min(num_bg, 50)
-#     graph_model.eval()
-#     with torch.no_grad():
-#         bg_tensor = torch.tensor(background_samples[:num_tqm], dtype=torch.float32).to(graph_model.device)
-#         codes = graph_model.quantize(bg_tensor)
-
-#         tqm_nodes_list = []
-#         for c in range(Config.N_CHUNKS):
-#             chunk_vectors = graph_model.codebooks[c][codes[:, c]]
-#             tqm_nodes_list.append(chunk_vectors)
-
-#         tqm_nodes = torch.cat(tqm_nodes_list, dim=1).cpu().numpy()
-
-#     # 4. Concatenate everything for t-SNE
-#     all_vectors = np.vstack([
-#         background_samples,  # Length: num_bg
-#         tqm_nodes,           # Length: num_tqm
-#         ncm_centroid,        # Length: 1
-#         query_clean,         # Length: 1
-#         query_occ            # Length: 1
-#     ])
-
-#     # 5. Run t-SNE (Project 384d -> 2d)
-#     tsne = TSNE(n_components=2, perplexity=min(30, len(all_vectors)-1), random_state=42)
-#     tsne_2d = tsne.fit_transform(all_vectors)
-
-#     # --- DYNAMIC INDICES FOR PLOTTING ---
-#     idx_bg_end = num_bg
-#     idx_tqm_end = idx_bg_end + num_tqm
-#     idx_ncm = idx_tqm_end
-#     idx_query = idx_ncm + 1
-#     idx_occ = idx_ncm + 2
-
-#     # 6. Plotting
-
-#     plt.figure(figsize=(8, 6))
-
-#     # Background Samples (Light Blue)
-#     plt.scatter(tsne_2d[0:idx_bg_end, 0], tsne_2d[0:idx_bg_end, 1], c='lightblue', alpha=0.4, label='Class Distribution')
-
-#     # TQM Graph Nodes (Green Triangles)
-#     plt.scatter(tsne_2d[idx_bg_end:idx_tqm_end, 0], tsne_2d[idx_bg_end:idx_tqm_end, 1], c='green', marker='^', s=80, edgecolors='black', label='TQM Graph Nodes')
-
-#     # NCM Global Centroid (Red Star)
-#     plt.scatter(tsne_2d[idx_ncm, 0], tsne_2d[idx_ncm, 1], c='red', marker='*', s=300, edgecolors='black', label='NCM Global Centroid')
-
-#     # Clean Query (Blue Circle)
-#     plt.scatter(tsne_2d[idx_query, 0], tsne_2d[idx_query, 1], c='blue', marker='o', s=150, edgecolors='white', label='Clean Query')
-
-#     # Occluded Query (Orange Circle)
-#     plt.scatter(tsne_2d[idx_occ, 0], tsne_2d[idx_occ, 1], c='orange', marker='X', s=200, edgecolors='black', label='75% Occluded Query')
-
-#     # Draw Arrows to show the shift
-#     plt.annotate('', xy=tsne_2d[idx_occ], xytext=tsne_2d[idx_query],
-#                  arrowprops=dict(facecolor='black', shrink=0.05, width=1.5, headwidth=8))
-
-#     plt.title("Fig 2: TQM Nodes Absorb Occlusion Shift better than Global NCM", fontsize=14, fontweight='bold')
-#     plt.legend(loc='best')
-#     plt.grid(True, linestyle='--', alpha=0.3)
-#     plt.tight_layout()
-#     plt.savefig('outputs/fig2_tsne_visualization.png', dpi=300)
-#     print("✅ Figure 2 saved to 'outputs/fig2_tsne_visualization.png'")
-
-# In src/evaluators.py
-
-
 def run_alpha_ablation(graph_model, X_test, y_test, dataset_name):
     """
     Generates Table 3 (Ablation) and Figure 3 (Alpha Sensitivity).
@@ -1386,3 +1191,229 @@ def run_alpha_ablation(graph_model, X_test, y_test, dataset_name):
     plt.tight_layout()
     plt.savefig(f"outputs/fig3_alpha_sensitivity_{dataset_name}.png", dpi=300)
     print(f"✅ Figure 3 saved to 'outputs/fig3_alpha_sensitivity_{dataset_name}.png'")
+
+
+# ==============================================================================
+# PAPER PLOTS: Pareto, Forgetting, Per-Backbone Bar
+# ==============================================================================
+
+def plot_pareto_accuracy_memory(results_summary, dataset_name="dataset"):
+    """
+    Scatter plot of Accuracy (%) vs Memory (MB) for all methods.
+    Draws the Pareto frontier connecting non-dominated points.
+
+    Parameters
+    ----------
+    results_summary : dict  {stage_key: (aia_fraction, mem_mb, ...)}
+    dataset_name    : str   used in title and filename
+    """
+    LABELS = {
+        "0": "Vanilla NCM", "1": "NCM", "2": "Replay",
+        "2b": "ER+MLP", "3": "Node-Replay", "4": "N-Node Sweep",
+        "5": "MAYA", "5b": "MAYA+Linear",
+    }
+    COLORS = {
+        "0": "#9e9e9e", "1": "#2ca02c", "2": "#d62728",
+        "2b": "#e377c2", "3": "#ff7f0e", "4": "#bcbd22",
+        "5": "#1f77b4", "5b": "#17becf",
+    }
+    MARKERS = {
+        "0": "v", "1": "^", "2": "s",
+        "2b": "D", "3": "p", "4": "h",
+        "5": "*", "5b": "P",
+    }
+
+    if not results_summary:
+        print("⚠️  No results to plot Pareto curve.")
+        return
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    points = []  # (mem, acc, key)
+    for k, v in results_summary.items():
+        aia, mem = v[0], v[1]
+        acc_pct = aia * 100
+        marker = MARKERS.get(k, "o")
+        color = COLORS.get(k, "#333333")
+        label = LABELS.get(k, k)
+        sz = 220 if k == "5" else 120  # MAYA gets a bigger marker
+        ax.scatter(mem, acc_pct, s=sz, marker=marker, color=color,
+                   edgecolors="black", linewidths=0.8, zorder=5, label=label)
+        ax.annotate(f"  {label}\\n  {acc_pct:.1f}%  |  {mem:.1f} MB",
+                    xy=(mem, acc_pct), fontsize=7.5, color=color,
+                    va="bottom", ha="left")
+        points.append((mem, acc_pct, k))
+
+    # Draw Pareto frontier (lower memory, higher accuracy = better)
+    points.sort(key=lambda p: p[0])  # sort by memory ascending
+    pareto = []
+    best_acc = -1
+    for mem, acc, k in points:
+        if acc > best_acc:
+            pareto.append((mem, acc))
+            best_acc = acc
+    if len(pareto) >= 2:
+        px, py = zip(*pareto)
+        ax.plot(px, py, "--", color="#555555", linewidth=1.5, alpha=0.6,
+                label="Pareto Frontier", zorder=2)
+        ax.fill_between(px, py, min(py) - 2, alpha=0.04, color="#1f77b4")
+
+    ax.set_xlabel("Memory (MB)", fontsize=13)
+    ax.set_ylabel("Average Incremental Accuracy (%)", fontsize=13)
+    ax.set_title(f"Accuracy vs Memory — {dataset_name}", fontsize=15, fontweight="bold")
+    ax.set_xscale("log")
+    ax.grid(True, linestyle="--", alpha=0.3, which="both")
+    ax.legend(fontsize=9, loc="lower right", framealpha=0.9)
+
+    plt.tight_layout()
+    os.makedirs("outputs", exist_ok=True)
+    out = f"outputs/pareto_{dataset_name}"
+    plt.savefig(f"{out}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{out}.svg", format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"✅ Pareto plot saved → {out}.png / .svg")
+
+
+def plot_forgetting_curves(forgetting_data, dataset_name="dataset"):
+    """
+    Line chart showing per-task accuracy degradation over training.
+
+    Parameters
+    ----------
+    forgetting_data : dict  {method_name: historical_matrix}
+        historical_matrix is shape (N_TASKS, N_TASKS) where entry [t, k] is
+        accuracy on task k after training through task t.
+    dataset_name    : str
+    """
+    if not forgetting_data:
+        print("⚠️  No forgetting data to plot.")
+        return
+
+    METHOD_COLORS = {
+        "NCM": "#2ca02c", "Replay": "#d62728", "ER+MLP": "#e377c2",
+        "MAYA": "#1f77b4", "MAYA+Linear": "#17becf",
+    }
+
+    fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(12, 9),
+                                          gridspec_kw={"hspace": 0.35})
+
+    # ── TOP: AIA over tasks (average accuracy after each task) ────────────
+    for name, hist in forgetting_data.items():
+        hist = np.array(hist)
+        n_tasks = hist.shape[0]
+        aia_curve = []
+        for t in range(n_tasks):
+            # Average accuracy on tasks 0..t after training through task t
+            accs = [hist[t, k] for k in range(t + 1)]
+            aia_curve.append(np.mean(accs) * 100)
+        color = METHOD_COLORS.get(name, None)
+        ax_top.plot(range(1, n_tasks + 1), aia_curve, "o-", label=name,
+                    color=color, linewidth=2, markersize=5)
+
+    ax_top.set_xlabel("Tasks Learned", fontsize=12)
+    ax_top.set_ylabel("Average Incremental Accuracy (%)", fontsize=12)
+    ax_top.set_title(f"AIA Curve — {dataset_name}", fontsize=14, fontweight="bold")
+    ax_top.legend(fontsize=10, loc="lower left")
+    ax_top.grid(True, linestyle="--", alpha=0.3)
+
+    # ── BOTTOM: Per-task forgetting (acc on task 0 after each step) ────────
+    for name, hist in forgetting_data.items():
+        hist = np.array(hist)
+        n_tasks = hist.shape[0]
+        # Show forgetting of the FIRST task across training
+        task0_acc = [hist[t, 0] * 100 for t in range(n_tasks)]
+        color = METHOD_COLORS.get(name, None)
+        ax_bot.plot(range(1, n_tasks + 1), task0_acc, "s--", label=f"{name} (Task 1)",
+                    color=color, linewidth=1.8, markersize=4, alpha=0.85)
+
+    ax_bot.set_xlabel("Tasks Learned", fontsize=12)
+    ax_bot.set_ylabel("Accuracy on Task 1 (%)", fontsize=12)
+    ax_bot.set_title(f"Forgetting of Task 1 — {dataset_name}", fontsize=14, fontweight="bold")
+    ax_bot.legend(fontsize=10, loc="lower left")
+    ax_bot.grid(True, linestyle="--", alpha=0.3)
+
+    plt.tight_layout()
+    os.makedirs("outputs", exist_ok=True)
+    out = f"outputs/forgetting_{dataset_name}"
+    plt.savefig(f"{out}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{out}.svg", format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"✅ Forgetting curves saved → {out}.png / .svg")
+
+
+def plot_backbone_gain_over_ncm(backbone_results, dataset_name="dataset"):
+    """
+    Grouped bar chart showing MAYA's gain (Δ%) over NCM for each backbone.
+
+    Parameters
+    ----------
+    backbone_results : dict  {backbone_name: {"ncm_aia": float, "maya_aia": float,
+                                               "ncm_mem": float, "maya_mem": float}}
+    dataset_name     : str
+    """
+    if not backbone_results:
+        print("⚠️  No backbone results to plot.")
+        return
+
+    backbones = list(backbone_results.keys())
+    ncm_accs = [backbone_results[b]["ncm_aia"] * 100 for b in backbones]
+    maya_accs = [backbone_results[b]["maya_aia"] * 100 for b in backbones]
+    gains = [m - n for m, n in zip(maya_accs, ncm_accs)]
+
+    x = np.arange(len(backbones))
+    w = 0.32
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5),
+                                    gridspec_kw={"width_ratios": [3, 2], "wspace": 0.35})
+
+    # ── LEFT: Grouped bar chart (NCM vs MAYA) ─────────────────────────────
+    bars_ncm = ax1.bar(x - w / 2, ncm_accs, w, label="NCM", color="#2ca02c",
+                       edgecolor="black", linewidth=0.6, alpha=0.85)
+    bars_maya = ax1.bar(x + w / 2, maya_accs, w, label="MAYA", color="#1f77b4",
+                        edgecolor="black", linewidth=0.6, alpha=0.85)
+
+    # Value labels on bars
+    for bar in bars_ncm:
+        ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.3,
+                 f"{bar.get_height():.1f}", ha="center", va="bottom", fontsize=8)
+    for bar in bars_maya:
+        ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.3,
+                 f"{bar.get_height():.1f}", ha="center", va="bottom", fontsize=8)
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([b.replace("dinov2", "DINOv2").replace("siglip", "SigLIP")
+                          .replace("resnet50", "ResNet-50").replace("clip", "CLIP")
+                          for b in backbones], fontsize=11)
+    ax1.set_ylabel("AIA (%)", fontsize=12)
+    ax1.set_title(f"NCM vs MAYA — {dataset_name}", fontsize=14, fontweight="bold")
+    ax1.legend(fontsize=11)
+    ax1.grid(True, axis="y", linestyle="--", alpha=0.3)
+    # Set y-axis to start near the lowest value for better visibility
+    y_min = max(0, min(ncm_accs + maya_accs) - 5)
+    ax1.set_ylim(y_min, max(ncm_accs + maya_accs) + 4)
+
+    # ── RIGHT: Gain bar chart (Δ%) ────────────────────────────────────────
+    colors = ["#1f77b4" if g >= 0 else "#d62728" for g in gains]
+    bars_g = ax2.bar(x, gains, w * 1.5, color=colors, edgecolor="black",
+                     linewidth=0.6, alpha=0.85)
+    for bar, g in zip(bars_g, gains):
+        va = "bottom" if g >= 0 else "top"
+        ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + (0.15 if g >= 0 else -0.15),
+                 f"{g:+.1f}%", ha="center", va=va, fontsize=9, fontweight="bold")
+
+    ax2.axhline(0, color="black", linewidth=0.8)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([b.replace("dinov2", "DINOv2").replace("siglip", "SigLIP")
+                          .replace("resnet50", "ResNet-50").replace("clip", "CLIP")
+                          for b in backbones], fontsize=11)
+    ax2.set_ylabel("MAYA Gain over NCM (Δ%)", fontsize=12)
+    ax2.set_title(f"MAYA Improvement — {dataset_name}", fontsize=14, fontweight="bold")
+    ax2.grid(True, axis="y", linestyle="--", alpha=0.3)
+
+    plt.tight_layout()
+    os.makedirs("outputs", exist_ok=True)
+    out = f"outputs/backbone_gain_{dataset_name}"
+    plt.savefig(f"{out}.png", dpi=300, bbox_inches="tight")
+    plt.savefig(f"{out}.svg", format="svg", bbox_inches="tight")
+    plt.close()
+    print(f"✅ Backbone gain chart saved → {out}.png / .svg")
