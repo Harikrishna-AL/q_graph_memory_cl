@@ -86,8 +86,12 @@ def run_experiment(backbone, dataset, **overrides):
     for k, v in overrides.items():
         setattr(Config, k.upper(), v)
         
-    _, _ = get_dataloader(dataset, use_train_set=True)
+    _, loader = get_dataloader(dataset, use_train_set=True)
     features, labels = load_cached_features(dataset, use_train=True)
+    if features is None:
+        backbone_model = load_backbone()
+        features, labels = extract_features(backbone_model, loader)
+        save_cached_features(features, labels, dataset, True)
     unique_labels = np.unique(labels)
     remapped_labels = np.array([{old: i for i, old in enumerate(unique_labels)}[l] for l in labels])
     
@@ -119,9 +123,17 @@ def main():
     os.makedirs("results", exist_ok=True)
     results = {}
 
+    Config.BACKBONE = args.backbone
+    Config.FEATURE_DIM = _BACKBONE_DIMS.get(args.backbone, 384)
+
     # Load data for the standalone baseline
-    _, _ = get_dataloader(args.dataset, use_train_set=True)
+    _, loader = get_dataloader(args.dataset, use_train_set=True)
     features, labels = load_cached_features(args.dataset, use_train=True)
+    if features is None:
+        print(f"⚠️  No cache found for {args.dataset} + {args.backbone}. Extracting now...")
+        backbone_model = load_backbone()
+        features, labels = extract_features(backbone_model, loader)
+        save_cached_features(features, labels, args.dataset, True)
 
     # --- 1. Component Ablation Table ---
     print("\n🚀 [1/3] Component Ablation Table...")
