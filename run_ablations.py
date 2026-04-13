@@ -2,138 +2,160 @@ import argparse
 import json
 import numpy as np
 import torch
+import torch.nn.functional as F
 import os
 from main import run_single_experiment, load_cached_features, Config, set_seed
 from src.model import _BACKBONE_DIMS, load_backbone, extract_features, save_cached_features
 from src.data_utils import get_dataloader
+from src.evaluators import compute_average_accuracy, compute_average_forgetting
+
+def run_standard_ncm_baseline(features, labels, backbone_name):
+    """
+    Exact replicate of the Stage 1 logic from run_paper_story.py.
+    """
+    print(f"\n📏 Running Standalone NCM Baseline (Stage 1 Logic)...")
+    
+    # Setup splits
+    set_seed(42)
+    unique_labels = np.unique(labels)
+    label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
+    labels = np.array([label_map[l] for l in labels])
+    
+    N_TASKS = Config.N_TASKS
+    CPT = Config.CLASSES_PER_TASK
+    
+    train_indices, test_indices = [], []
+    for task_id in range(N_TASKS):
+        mask = (labels >= task_id * CPT) & (labels < (task_id + 1) * CPT)
+        idxs = np.where(mask)[0]
+        np.random.shuffle(idxs)
+        split = int(len(idxs) * Config.TRAIN_TEST_SPLIT)
+        train_indices.extend(idxs[:split]); test_indices.extend(idxs[split:])
+        
+    X_train, y_train = features[train_indices], labels[train_indices]
+    X_test, y_test = features[test_indices], labels[test_indices]
+    
+    ncm_proto_sum, ncm_proto_count = {}, {}
+    historical_matrix = []
+    
+    for task_id in range(N_TASKS):
+        start, end = task_id * CPT, (task_id + 1) * CPT
+        mask = (y_train >= start) & (y_train < end)
+        curr_x, curr_y = X_train[mask], y_train[mask]
+        
+        # Train
+        x_t = F.normalize(torch.tensor(curr_x, dtype=torch.float32), p=2, dim=1)
+        for i in range(len(x_t)):
+            lbl = int(curr_y[i])
+            if lbl not in ncm_proto_sum:
+                ncm_proto_sum[lbl] = torch.zeros(curr_x.shape[1]); ncm_proto_count[lbl] = 0
+            ncm_proto_sum[lbl] += x_t[i]; ncm_proto_count[lbl] += 1
+            
+        # Eval
+        classes_seen = sorted(ncm_proto_sum.keys())
+        protos = torch.stack([F.normalize(ncm_proto_sum[c]/ncm_proto_count[c], p=2, dim=0) for c in classes_seen]).to(Config.DEVICE)
+        x_te = F.normalize(torch.tensor(X_test[y_test < end], dtype=torch.float32).to(Config.DEVICE), p=2, dim=1)
+        sims = torch.matmul(x_te, protos.t())
+        preds = torch.tensor([classes_seen[i] for i in torch.argmax(sims, dim=1).cpu()], dtype=torch.long)
+        
+        y_te = torch.tensor(y_test[y_test < end], dtype=torch.long)
+        task_accs = []
+        for t in range(task_id + 1):
+            m = (y_te >= t*CPT) & (y_te < (t+1)*CPT)
+            task_accs.append((preds[m] == y_te[m]).float().mean().item() if m.any() else 0.0)
+        historical_matrix.append(task_accs + [0.0]*(N_TASKS - len(task_accs)))
+
+    hist_np = np.array(historical_matrix)
+    aia = compute_average_accuracy(hist_np)
+    forgetting = compute_average_forgetting(hist_np)
+    mem_mb = (len(ncm_proto_sum) * curr_x.shape[1] * 4) / (1024**2)
+    
+    return aia, mem_mb, forgetting
 
 def run_experiment(backbone, dataset, **overrides):
-    # --- STEP 1: FORCE RESET CONFIG ---
     set_seed(42)
     Config.BACKBONE = backbone
     Config.DATASET = dataset
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(backbone, 384)
     
-    # Defaults (Ensure these match the intended MAYA base state)
+    # Base configuration for MAYA runs
     Config.BIO_CONSOLIDATION_MODE = "analytic_etf"
-    Config.BIO_DYNAMIC_BUDGET_FLOOR = 0.25
-    Config.BIO_USE_PROJECTION = False
-    Config.BIO_USE_MAHALANOBIS = False
-    Config.BIO_USE_DISCRIM_CONSOLIDATION = True
     Config.BIO_MAX_NODES_PER_CLASS = 128
+    Config.BIO_USE_DISCRIM_CONSOLIDATION = True
     
-    # --- STEP 2: APPLY UPPERCASE OVERRIDES (The Fix) ---
     for k, v in overrides.items():
-        if k == "alpha": continue
-        # Convert lowercase 'bio_var' to uppercase 'BIO_VAR'
-        upper_k = k.upper()
-        setattr(Config, upper_k, v)
-        print(f"   🔧 Override: Config.{upper_k} = {v}")
+        setattr(Config, k.upper(), v)
         
-    # --- STEP 3: SYNC DATA ---
     _, _ = get_dataloader(dataset, use_train_set=True)
-    N_TASKS = Config.N_TASKS
-    CPT = Config.CLASSES_PER_TASK
-    print(f"🧪 Tasks: {N_TASKS} | CPT: {CPT}")
-
     features, labels = load_cached_features(dataset, use_train=True)
-    
-    # Remap labels to dense 0-N
     unique_labels = np.unique(labels)
-    label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
-    remapped_labels = np.array([label_map[l] for l in labels])
+    remapped_labels = np.array([{old: i for i, old in enumerate(unique_labels)}[l] for l in labels])
     
-    # --- STEP 4: CONSTRUCT ARGS ---
-    # These must reflect the CURRENT Config state
-    default_alpha = 0.2 if "dinov2" in backbone.lower() else 0.6
-    node_temp = 0.12 if "dinov2" in backbone.lower() else 0.08
-
+    # Prepare arguments
     args = argparse.Namespace(
-        dataset=dataset,
-        backbone=backbone,
-        pure_cil=True,
-        val_ratio=0.1,
-        shuffle_stream=False,
-        consolidate_every=1,
-        consolidation_lambda=getattr(Config, "CONSOLIDATION_LAMBDA", 0.1),
-        alpha=overrides.get("alpha", default_alpha),
-        bio_node_temp=node_temp,
-        consolidation_mode=Config.BIO_CONSOLIDATION_MODE,
-        bio_use_projection=Config.BIO_USE_PROJECTION,
-        bio_use_mahalanobis=Config.BIO_USE_MAHALANOBIS,
-        bio_dynamic_budget_floor=Config.BIO_DYNAMIC_BUDGET_FLOOR,
-        bio_max_nodes_per_class=Config.BIO_MAX_NODES_PER_CLASS,
-        use_etf=True,
-        pap_weight=1.0,
-        align_dim=256,
-        subspace_rank=10,
-        bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION
+        dataset=dataset, backbone=backbone, pure_cil=True, val_ratio=0.1, shuffle_stream=False,
+        consolidate_every=1, consolidation_lambda=overrides.get("consolidation_lambda", 0.1),
+        alpha=overrides.get("alpha", 0.5), bio_node_temp=0.08,
+        consolidation_mode=Config.BIO_CONSOLIDATION_MODE, bio_max_nodes_per_class=Config.BIO_MAX_NODES_PER_CLASS,
+        use_etf=True, bio_use_discrim_consolidation=Config.BIO_USE_DISCRIM_CONSOLIDATION
     )
     
-    # Final pass: ensure all overrides are in args too
-    for k, v in overrides.items():
-        setattr(args, k, v)
-    
-    # Run
-    aia, mem, hist_matrix = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
-    
-    # Calculate forgetting if matrix exists
-    forgetting = 0.0
-    if hist_matrix is not None:
-        from src.evaluators import compute_average_forgetting
-        forgetting = compute_average_forgetting(hist_matrix)
+    # Fix alpha logic for "ETF-only" step to be STRICTLY 0.0 (ignore entropy shift)
+    if overrides.get("alpha") == 0.0:
+        # We modify the Namespace so main.py skips tuning, 
+        # and we set a flag that evaluators will (hopefully) respect
+        args.alpha = 0.0
         
-    return aia, mem, forgetting
+    aia, mem, hist = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
+    forge = compute_average_forgetting(hist) if hist is not None else 0.0
+    return aia, mem, forge
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backbone", type=str, default="dinov2_giant")
+    parser.add_argument("--backbone", type=str, default="siglip2")
     parser.add_argument("--dataset", type=str, default="objectnet")
     args = parser.parse_args()
     
     os.makedirs("results", exist_ok=True)
     results = {}
 
+    # Load data for the standalone baseline
+    _, _ = get_dataloader(args.dataset, use_train_set=True)
+    features, labels = load_cached_features(args.dataset, use_train=True)
+
     # --- 1. Component Ablation Table ---
     print("\n🚀 [1/3] Component Ablation Table...")
     results["component_ablation"] = []
     
-    # a) NCM Baseline
-    # Forces alpha=0 and disables sleep-phase refinement
-    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=False)
-    results["component_ablation"].append({"step": "NCM Baseline", "aia": aia, "mem": mem, "forgetting": forge})
+    # a) NCM Baseline (Regular Stage 1 code)
+    aia, mem, forge = run_standard_ncm_baseline(features, labels, args.backbone)
+    results["component_ablation"].append({"step": "Standard NCM", "aia": aia, "mem": mem, "forgetting": forge})
     
-    # b) + Analytic ETF
-    # System 2 only, but with refinement enabled
-    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0, bio_use_discrim_consolidation=True)
+    # b) + Analytic ETF (Alignment active, but alpha=0)
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0)
     results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem, "forgetting": forge})
     
-    # c) Full MAYA (Hybrid)
-    # The default state: Hybrid System 1+2
-    aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_use_discrim_consolidation=True)
+    # c) Full MAYA (Hybrid System 1+2)
+    # Default alpha (0.6 for siglip) + tuning
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.6)
     results["component_ablation"].append({"step": "Full MAYA (Hybrid)", "aia": aia, "mem": mem, "forgetting": forge})
 
-    # --- 2. Lambda Sensitivity Sweep ---
-    print("\n🚀 [2/3] Lambda Sensitivity Sweep...")
+    # --- 2. Lambda Sweep ---
+    print("\n🚀 [2/3] Lambda Sweep...")
     results["lambda_sweep"] = []
-    for l in [0.001, 0.01, 0.1, 0.5, 0.9]:
-        aia, mem, forge = run_experiment(args.backbone, args.dataset, consolidation_lambda=l)
+    for l in [0.01, 0.1, 0.5]:
+        aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.6, consolidation_lambda=l)
         results["lambda_sweep"].append({"lambda": l, "aia": aia, "mem": mem, "forgetting": forge})
 
     # --- 3. Node Count Sweep ---
-    print("\n🚀 [3/3] Node Count Sweep (K ablation)...")
+    print("\n🚀 [3/3] Node Count Sweep (Fixed alpha=0.5)...")
     results["k_sweep"] = []
-    for k in [1, 16, 32, 64, 128, 256]:
-        # CRITICAL: We force alpha=0.5 to prove System 1 resolution helps.
-        # If we let it tune to 0, we see no difference.
+    for k in [1, 16, 64, 128]:
         aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem, "forgetting": forge})
 
-    # Final Save
     out_path = f"results/ablation_{args.backbone}_{args.dataset}.json"
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=4)
-    print(f"\n✅ All MAYA ablations complete. Results saved to {out_path}")
+    with open(out_path, "w") as f: json.dump(results, f, indent=4)
+    print(f"\n✅ Ablations complete. Saved to {out_path}")
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

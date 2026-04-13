@@ -145,7 +145,10 @@ def predict_dual_system(model, feature_vector, alpha=0.6):
     # 2. Dynamic Alpha Shift: 
     # For DINOv2, we stay conservative (alpha=0.2), shifting toward 0.5 under confusion.
     # For SigLIP, we start at alpha=0.6, shifting toward 0.8.
-    dynamic_alpha = alpha + (min(0.8, alpha + 0.3) - alpha) * uncertainty 
+    if alpha == 0.0 or alpha == 1.0:
+        dynamic_alpha = alpha
+    else:
+        dynamic_alpha = alpha + (min(0.8, alpha + 0.3) - alpha) * uncertainty 
 
     final_probs = (dynamic_alpha * prob_node) + ((1 - dynamic_alpha) * prob_proto)
     return torch.argmax(final_probs, dim=1)
