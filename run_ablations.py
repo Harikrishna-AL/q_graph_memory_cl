@@ -92,6 +92,14 @@ def run_experiment(backbone, dataset, **overrides):
         backbone_model = load_backbone()
         features, labels = extract_features(backbone_model, loader)
         save_cached_features(features, labels, dataset, True)
+    
+    # --- DIMENSION AUTO-CORRECTION ---
+    actual_dim = features.shape[1]
+    if actual_dim != Config.FEATURE_DIM:
+        print(f"⚠️  DIMENSION MISMATCH! Auto-correcting Config.FEATURE_DIM from {Config.FEATURE_DIM} to {actual_dim}")
+        Config.FEATURE_DIM = actual_dim
+    # ---------------------------------
+
     unique_labels = np.unique(labels)
     remapped_labels = np.array([{old: i for i, old in enumerate(unique_labels)}[l] for l in labels])
     

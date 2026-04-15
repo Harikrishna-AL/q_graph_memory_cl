@@ -19,7 +19,7 @@ CACHE_DIR = "cache"
 _BACKBONE_DIMS = {
     "dinov2": 384,       # ViT-S/14
     "dinov2_giant": 1536,# ViT-g/14
-    "dinov3": 3584,      # dinov3_vit7b16 (7 Billion Parameters)
+    "dinov3": 4096,      # dinov3_vit7b16 (7 Billion Parameters)
     "siglip": 1152,      # vit_so400m_patch14_siglip_384
     "siglip2": 1536,     # ViT-gopt-16-SigLIP2-384
     "resnet18": 512,
@@ -1425,12 +1425,22 @@ class BioEpisodicGraph(nn.Module):
         # 3. Consistency: Has this node been stable over time?
         consistency_score = self._norm01(self.node_consistency)
 
-        # FINAL PRIORITY: Specialist nodes are Hard, Accurate, and Consistent.
-        # We prioritize nodes that are visually unique (hard) but semantically correct (fidelity).
-        pre_priority = 0.6 * hardness_score + 0.3 * fidelity_score + 0.1 * consistency_score
+        # FINAL PRIORITY: Balanced Memory
+        # We want a mix of "Core" nodes (near the mean) and "Specialist" nodes (at boundaries).
+        # This prevents System 1 from becoming a pure outlier detector.
+        
+        # Prototypicality (The Core)
+        core_score = 1.0 - hardness_score # High for nodes near the mean
+        
+        # We use a Max-Heuristic: A node is valuable if it's a great "Core" 
+        # OR a great "Specialist".
+        combined_score = torch.max(0.6 * core_score, 0.8 * hardness_score)
+        
+        # Boost by accuracy (Fidelity)
+        pre_priority = combined_score * (0.7 + 0.3 * fidelity_score)
 
         # Pruning thresholds
-        score_thresh = pre_priority.mean() * 0.5
+        score_thresh = pre_priority.mean() * 0.4
         keep_mask = (pre_priority > score_thresh)
 
         self.nodes = self.nodes[keep_mask]
@@ -1540,10 +1550,13 @@ class BioEpisodicGraph(nn.Module):
             # (B, N_total_nodes)
             logits_per_node = torch.matmul(query_embed, node_bank.t())
 
-            # ── Vectorized Log-Sum-Exp (Manifold Density) ────────────────────
-            # We use a tighter temperature for the raw space to sharpen 
-            # the visual distinction between classes.
-            density_temp = self.node_temp * 0.5
+            # ── Adaptive Temperature ────────────────────────────────────────
+            # For 1536-dim (SigLIP-2), the dot products are much higher.
+            # We scale the temperature proportional to dimensionality to 
+            # keep the Log-Sum-Exp competitive, not just 1-NN.
+            dim_factor = float(self.input_dim / 384.0)
+            density_temp = self.node_temp * 0.5 * dim_factor
+            
             scaled_sims = logits_per_node / density_temp
             
             # Expand labels for batch: (B, N_nodes)
