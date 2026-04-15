@@ -143,9 +143,13 @@ def main():
     aia, mem, forge = run_standard_ncm_baseline(features, labels, args.backbone)
     results["component_ablation"].append({"step": "Standard NCM", "aia": aia, "mem": mem, "forgetting": forge})
     
-    # b) + Analytic ETF (Alignment active, but alpha=0)
+    # b1) + Analytic ETF (Alignment active, but alpha=0)
     aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0)
     results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem, "forgetting": forge})
+
+    # b2) + alpha = 1
+    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=1.0)
+    results["component_ablation"].append({"step": "+alpha=1", "aia": aia, "mem": mem, "forgetting": forge})
     
     # c) Full MAYA (Hybrid System 1+2)
     # Default alpha (0.6 for siglip) + tuning
