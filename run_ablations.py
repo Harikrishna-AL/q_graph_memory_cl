@@ -147,13 +147,13 @@ def main():
     print("\n🚀 [1/3] Component Ablation Table...")
     results["component_ablation"] = []
     
-    # a) NCM Baseline (Regular Stage 1 code)
-    aia, mem, forge = run_standard_ncm_baseline(features, labels, args.backbone)
-    results["component_ablation"].append({"step": "Standard NCM", "aia": aia, "mem": mem, "forgetting": forge})
+    # # a) NCM Baseline (Regular Stage 1 code)
+    # aia, mem, forge = run_standard_ncm_baseline(features, labels, args.backbone)
+    # results["component_ablation"].append({"step": "Standard NCM", "aia": aia, "mem": mem, "forgetting": forge})
     
-    # b1) + Analytic ETF (Alignment active, but alpha=0)
-    aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0)
-    results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem, "forgetting": forge})
+    # # b1) + Analytic ETF (Alignment active, but alpha=0)
+    # aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=0.0)
+    # results["component_ablation"].append({"step": "+Analytic ETF", "aia": aia, "mem": mem, "forgetting": forge})
 
     # b2) + alpha = 1
     aia, mem, forge = run_experiment(args.backbone, args.dataset, alpha=1.0)

@@ -59,6 +59,7 @@ class Config:
     BIO_ALIGN_DIM = 256            # output dimension of alignment layer
     BIO_PAP_WEIGHT = 1.0           # weight for Pull-and-Push loss
     BIO_SUBSPACE_RANK = 10         # number of PCs per class manifold
+    BIO_RERANK_K = 5               # Number of candidates for episodic re-ranking
     BIO_PSEUDO_SAMPLES = 512       # pseudo-samples per class for generative alignment
     BIO_ETF_MODES = 4              # number of geometric sub-slots per class
     BIO_DISC_STEPS = 250

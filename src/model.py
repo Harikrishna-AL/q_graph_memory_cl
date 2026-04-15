@@ -587,6 +587,11 @@ class BioEpisodicGraph(nn.Module):
         self.nodes = torch.zeros((0, input_dim), device=self.device)
         self.node_labels = torch.empty(0, dtype=torch.long, device=self.device)
 
+        # Task Buffer: Stores raw features during the online phase for 
+        # high-fidelity clustering during the offline consolidation phase.
+        self.task_buffer_feats = []
+        self.task_buffer_lbls = []
+
         # Activation histories (tracked per node)
         self.node_freq = torch.zeros(0, device=self.device)
         self.node_strength = torch.zeros(0, device=self.device)
@@ -956,7 +961,7 @@ class BioEpisodicGraph(nn.Module):
                     self.uncert_momentum * self._class_unc[lbl]
                     + (1.0 - self.uncert_momentum) * uncert
                 )
-            
+
             # 1.5 Update RLA Accumulators (X^T X and X^T W_etf)
             if getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd") == "analytic_etf":
                 if self._etf_matrix is not None:
@@ -965,11 +970,11 @@ class BioEpisodicGraph(nn.Module):
                     classes_list = self.seen_classes
                     label_to_idx = {l: i for i, l in enumerate(classes_list)}
                     idx = label_to_idx.get(lbl, -1)
-                    
+
                     if idx >= 0:
                         w_target = self._etf_matrix[idx].unsqueeze(0)
                         feat_uns = feat.unsqueeze(0)
-                        
+
                         # Accumulate
                         self._RLA_A += torch.matmul(feat_uns.t(), feat_uns)
                         self._RLA_B += torch.matmul(feat_uns.t(), w_target)
@@ -989,58 +994,13 @@ class BioEpisodicGraph(nn.Module):
             unique_hits = torch.unique(nearest_nodes)
             self.node_consistency[unique_hits] += 1
 
-        # 3. Class-conditional K-Means node extraction (reduces label-noise)
-        from sklearn.cluster import KMeans
+        # 3. Task-Level Buffering
+        # Instead of clustering per batch, we store the raw features for 
+        # higher-fidelity clustering during the offline consolidation pass.
+        self.task_buffer_feats.append(batch_features.detach().cpu())
+        self.task_buffer_lbls.append(batch_labels.detach().cpu())
 
-        unique_batch_labels = torch.unique(batch_labels)
-        for lbl_t in unique_batch_labels:
-            lbl = int(lbl_t.item())
-            class_feats = batch_features[batch_labels == lbl_t]
-            if class_feats.shape[0] == 0:
-                continue
-
-            n_clusters = min(self.kmeans_per_class, class_feats.shape[0])
-            if class_feats.shape[0] >= 12:
-                n_clusters = max(2, n_clusters)
-            else:
-                n_clusters = 1
-
-            class_np = class_feats.detach().cpu().numpy()
-            kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=Config.SEED)
-            kmeans.fit(class_np)
-
-            new_nodes = torch.tensor(
-                kmeans.cluster_centers_, dtype=torch.float32, device=self.device
-            )
-            new_nodes = F.normalize(new_nodes, p=2, dim=1)
-
-            same_label_idxs = torch.where(self.node_labels == lbl_t)[0]
-            if same_label_idxs.numel() == 0:
-                for node_vec in new_nodes:
-                    self._append_node(node_vec, lbl)
-                continue
-
-            existing = self.nodes[same_label_idxs]
-            dists = torch.cdist(new_nodes, existing)
-            min_dists, min_pos = torch.min(dists, dim=1)
-
-            for i in range(new_nodes.shape[0]):
-                node_vec = new_nodes[i]
-                if min_dists[i] < self.merge_threshold:
-                    target_idx = same_label_idxs[min_pos[i]]
-                    self.nodes[target_idx] = F.normalize(
-                        0.7 * self.nodes[target_idx] + 0.3 * node_vec, p=2, dim=0
-                    )
-                    self.node_freq[target_idx] += 1.0
-                    self.node_strength[target_idx] += 1.0
-                    self.node_consistency[target_idx] += 1.0
-                    self.node_fidelity[target_idx] += 1.0
-                else:
-                    self._append_node(node_vec, lbl)
-
-        self._cap_nodes_per_class()
-
-    def _discriminative_proto_optimization(self, omega):
+    def _discriminative_proto_optimization(self, omega):        
         """
         Sleep-phase discriminative prototype optimization.
 
@@ -1311,8 +1271,38 @@ class BioEpisodicGraph(nn.Module):
 
     def consolidate(self, lambda_val=0.1):
         """
-        OFFLINE CONSOLIDATION: Transfer essence to prototypes and prune graph.
+        OFFLINE CONSOLIDATION: 
+        1. Extract high-fidelity nodes from the task buffer (Hippocampal Sleep).
+        2. Transfer essence to prototypes and prune graph (Cortical Consolidation).
         """
+        # STEP 0: Task-Level Node Extraction (Hippocampal Sleep)
+        if len(self.task_buffer_feats) > 0:
+            from sklearn.cluster import KMeans
+            all_task_feats = torch.cat(self.task_buffer_feats, dim=0)
+            all_task_lbls = torch.cat(self.task_buffer_lbls, dim=0)
+
+            unique_task_labels = torch.unique(all_task_lbls)
+            for lbl_t in unique_task_labels:
+                lbl = int(lbl_t.item())
+                class_feats = all_task_feats[all_task_lbls == lbl_t]
+                
+                n_clusters = min(self.kmeans_per_class, class_feats.shape[0])
+                if class_feats.shape[0] >= 12: n_clusters = max(2, n_clusters)
+                else: n_clusters = 1
+
+                class_np = class_feats.numpy()
+                kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=Config.SEED)
+                kmeans.fit(class_np)
+
+                new_nodes = torch.tensor(kmeans.cluster_centers_, dtype=torch.float32, device=self.device)
+                new_nodes = F.normalize(new_nodes, p=2, dim=1)
+
+                for node_vec in new_nodes:
+                    self._append_node(node_vec, lbl)
+
+            self.task_buffer_feats = []
+            self.task_buffer_lbls = []
+
         if len(self.nodes) == 0:
             return
 
@@ -1611,11 +1601,10 @@ class BioEpisodicGraph(nn.Module):
 
     def predict_logits(self, batch_features):
         """
-        Internal fused prediction: combines System 1 (episodic) and System 2 (prototype).
-
-        Uses the model's own proto_weight, node_temp, and proto_temp to blend the two
-        branches.  Call predict_node_logits / predict_proto_logits directly if you need
-        the individual signals for an external dual-system fusion.
+        Coarse-to-Fine Dual-System Inference:
+        1. System 2 (Cortex) performs a global "coarse" alignment search.
+        2. Top-K candidates are passed to System 1 (Hippocampus).
+        3. System 1 performs "fine" local re-ranking using episodic density.
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
@@ -1624,15 +1613,30 @@ class BioEpisodicGraph(nn.Module):
         # Guard: nothing learned yet
         if self.nodes.shape[0] == 0 and torch.sum(self.prototypes_counts) == 0:
             out_dim = max(self.seen_classes) + 1 if self.seen_classes else 1
-            return torch.zeros(
-                (batch_features.shape[0], out_dim), device=self.device
-            )
+            return torch.zeros((batch_features.shape[0], out_dim), device=self.device)
 
-        node_logits = self.predict_node_logits(batch_features)
-        proto_logits = self.predict_proto_logits(batch_features)
-
+        # 1. Coarse Global Alignment (System 2)
+        proto_logits = self.predict_proto_logits(batch_features) # (B, C)
+        
+        # 2. Identify Top-K Candidates (The "Shortlist")
+        # We limit the episodic system to only score the most likely candidates.
+        K = getattr(Config, "BIO_RERANK_K", 5)
+        C = proto_logits.shape[1]
+        top_k_indices = torch.topk(proto_logits, k=min(K, C), dim=1).indices # (B, K)
+        
+        # 3. Fine Local Discrimination (System 1)
+        node_logits = self.predict_node_logits(batch_features) # (B, C)
+        
+        # 4. RE-RANKING MASK: Zero out node evidence for non-candidates
+        mask = torch.zeros_like(node_logits).scatter_(1, top_k_indices, 1.0)
+        # Use a very low value for masked logits to effectively remove them from the vote
+        node_logits_masked = node_logits.masked_fill(mask == 0, -1e4)
+        
+        # 5. Hybrid Decision (Tie-Breaking)
+        # We trust System 1 more within the shortlist because it has local visual fidelity.
+        # If System 1 is confident about a candidate, it should break the tie.
         graph_weight = 1.0 - self.proto_weight
-        return graph_weight * (node_logits / self.node_temp) + self.proto_weight * (
+        return graph_weight * (node_logits_masked / self.node_temp) + self.proto_weight * (
             proto_logits / self.proto_temp
         )
 
