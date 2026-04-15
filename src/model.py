@@ -732,18 +732,9 @@ class BioEpisodicGraph(nn.Module):
             if class_nodes.shape[0] < 2:
                 continue
                 
-            # SYSTEM 1 Manifold Calculation
-            mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
-            
-            if mode == "analytic_etf" and self._RLA_P is not None:
-                # Use aligned space for manifolds
-                class_nodes = F.normalize(torch.matmul(class_nodes, self._RLA_P), p=2, dim=1)
-                classes_list = self.seen_classes
-                label_to_idx = {l: i for i, l in enumerate(classes_list)}
-                mu_c = self._etf_matrix[label_to_idx[lbl]]
-            else:
-                # Use generative backbone space
-                mu_c = self._get_proto(lbl)
+            # SYSTEM 1 Manifold Calculation: Always use raw backbone space 
+            # for generative robustness, complementary to System 2's alignment.
+            mu_c = self._get_proto(lbl) # (D_backbone,)
             
             # Orthonormal basis via SVD on CPU
             centered_nodes = (class_nodes - mu_c).detach().cpu()
@@ -1419,22 +1410,29 @@ class BioEpisodicGraph(nn.Module):
 
                 self.proj_matrix.copy_(p_var.detach())
 
-        # STEP 4: Prune redundant nodes
-        # Build a proto tensor matched to node_labels
+        # STEP 4: Prune redundant nodes (Boundary Specialist Logic)
+        # 1. Fidelity: Did this node always predict the right class?
+        # A boundary specialist must be accurate, otherwise it's just noise.
+        node_fidelity_rate = self.node_fidelity / (self.node_freq + 1e-6)
+        fidelity_score = self._norm01(node_fidelity_rate)
+        
+        # 2. Hardness: How far is this from the Global Prototype?
+        # High distance means it captures a visual mode the prototype doesn't "see" well.
         node_protos = torch.stack([self._get_proto(int(lbl.item())) for lbl in self.node_labels])
-        dist_to_proto = torch.norm(
-            self.nodes - node_protos, dim=1
-        )
-        uniqueness = self._norm01(dist_to_proto)
+        dist_to_proto = torch.norm(self.nodes - node_protos, dim=1)
+        hardness_score = self._norm01(dist_to_proto)
 
-        # # Keep if score is high OR uniqueness is high
-        # keep_mask = (omega > omega.median()) | (uniqueness > uniqueness.median())
-        score_thresh = omega.mean() * 0.5
-        unique_thresh = uniqueness.mean() * 0.5
+        # 3. Consistency: Has this node been stable over time?
+        consistency_score = self._norm01(self.node_consistency)
 
-        keep_mask = (omega > score_thresh) | (uniqueness > unique_thresh)
+        # FINAL PRIORITY: Specialist nodes are Hard, Accurate, and Consistent.
+        # We prioritize nodes that are visually unique (hard) but semantically correct (fidelity).
+        pre_priority = 0.6 * hardness_score + 0.3 * fidelity_score + 0.1 * consistency_score
 
-        pre_priority = 0.7 * omega + 0.3 * uniqueness
+        # Pruning thresholds
+        score_thresh = pre_priority.mean() * 0.5
+        keep_mask = (pre_priority > score_thresh)
+
         self.nodes = self.nodes[keep_mask]
         self.node_labels = self.node_labels[keep_mask]
         self.node_freq = self.node_freq[keep_mask]
@@ -1519,13 +1517,16 @@ class BioEpisodicGraph(nn.Module):
     def predict_node_logits(self, batch_features):
         """
         System 1 — Hippocampus (Episodic Node Memory).
-        Returns raw, unscaled logits from the episodic node branch only.
+        DUAL-VIEW: Operates in the RAW backbone space to preserve generative 
+        manifold nuances that the discriminative projection might erase.
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
         batch_features = batch_features.to(self.device)
-        batch_features = F.normalize(batch_features, p=2, dim=1)
-        batch_embed = F.normalize(self._project(batch_features), p=2, dim=1)
+        
+        # DUAL-VIEW: System 1 uses RAW backbone features
+        query_embed = F.normalize(batch_features, p=2, dim=1)
+        node_bank = F.normalize(self.nodes, p=2, dim=1) 
 
         batch_size = batch_features.shape[0]
         max_cls = max(self.seen_classes) if self.seen_classes else -1
@@ -1534,25 +1535,14 @@ class BioEpisodicGraph(nn.Module):
             
         C = max_cls + 1
         device = self.device
-        batch_size = batch_features.shape[0]
         
-        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
-
         if self.nodes.shape[0] > 0:
-            if mode == "nc_align":
-                query_embed = self.align_layer(batch_features) 
-                node_bank = self.align_layer(self.nodes)       
-            elif mode == "analytic_etf" and self._RLA_P is not None:
-                query_embed = F.normalize(torch.matmul(batch_features, self._RLA_P), p=2, dim=1)
-                node_bank = F.normalize(torch.matmul(self.nodes, self._RLA_P), p=2, dim=1)
-            else:
-                query_embed = F.normalize(self._project(batch_features), p=2, dim=1)
-                node_bank = F.normalize(self._project(self.nodes), p=2, dim=1)
-            
             # (B, N_total_nodes)
             logits_per_node = torch.matmul(query_embed, node_bank.t())
 
             # ── Vectorized Log-Sum-Exp (Manifold Density) ────────────────────
+            # We use a tighter temperature for the raw space to sharpen 
+            # the visual distinction between classes.
             density_temp = self.node_temp * 0.5
             scaled_sims = logits_per_node / density_temp
             
@@ -1574,31 +1564,22 @@ class BioEpisodicGraph(nn.Module):
             graph_logits = (m + torch.log(sum_exp + 1e-10)) * density_temp
 
             if self._class_subspaces:
-                classes_list = self.seen_classes
                 subspace_tensors = []
                 mu_tensors = []
                 
-                # Identify active dimension and target rank
-                d_align = getattr(Config, "BIO_ALIGN_DIM", 256)
-                curr_dim = d_align if mode in ["nc_align", "analytic_etf"] else self.input_dim
+                # In Dual-View, subspaces are always in RAW backbone space
+                curr_dim = self.input_dim
                 target_rank = getattr(Config, "BIO_SUBSPACE_RANK", 10)
                 
                 for lbl in range(C):
                     if lbl in self._class_subspaces:
                         V = self._class_subspaces[lbl] # (D, k_eff)
-                        # Padding: ensure all subspaces have shape (curr_dim, target_rank)
                         if V.shape[1] < target_rank:
                             padding = torch.zeros((curr_dim, target_rank - V.shape[1]), device=device)
                             V = torch.cat([V, padding], dim=1)
                         subspace_tensors.append(V)
-                        
-                        if mode == "analytic_etf":
-                            label_to_idx = {l: i for i, l in enumerate(classes_list)}
-                            mu_tensors.append(self._etf_matrix[label_to_idx[lbl]])
-                        else:
-                            mu_tensors.append(self._get_proto(lbl))
+                        mu_tensors.append(self._get_proto(lbl))
                     else:
-                        # Dummy for unseen/unstable classes
                         subspace_tensors.append(torch.zeros((curr_dim, target_rank), device=device))
                         mu_tensors.append(torch.zeros(curr_dim, device=device))
                 
