@@ -952,21 +952,11 @@ class BioEpisodicGraph(nn.Module):
             self._proto_count[lbl] = n_new
             self._proto_m2[lbl]   += delta * delta2
 
-            if n_new > 1:
-                sim = F.cosine_similarity(
-                    feat.view(1, -1), mean_new.view(1, -1), dim=1
-                ).item()
-                uncert = max(0.0, 1.0 - sim)
-                self._class_unc[lbl] = (
-                    self.uncert_momentum * self._class_unc[lbl]
-                    + (1.0 - self.uncert_momentum) * uncert
-                )
-
             # 1.5 Update RLA Accumulators (X^T X and X^T W_etf)
+            # We use the FULL stream for RLA to ensure the projection 
+            # captures the global feature statistics, not just the nodes.
             if getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd") == "analytic_etf":
                 if self._etf_matrix is not None:
-                    # w_target: (1, D_align)
-                    # We map class label to the specific ETF slot
                     classes_list = self.seen_classes
                     label_to_idx = {l: i for i, l in enumerate(classes_list)}
                     idx = label_to_idx.get(lbl, -1)
@@ -974,9 +964,9 @@ class BioEpisodicGraph(nn.Module):
                     if idx >= 0:
                         w_target = self._etf_matrix[idx].unsqueeze(0)
                         feat_uns = feat.unsqueeze(0)
-
-                        # Accumulate
+                        # A += z z^T
                         self._RLA_A += torch.matmul(feat_uns.t(), feat_uns)
+                        # B += z w^T
                         self._RLA_B += torch.matmul(feat_uns.t(), w_target)
 
         # 2. Update Activation History for EXISTING nodes
@@ -995,8 +985,6 @@ class BioEpisodicGraph(nn.Module):
             self.node_consistency[unique_hits] += 1
 
         # 3. Task-Level Buffering
-        # Instead of clustering per batch, we store the raw features for 
-        # higher-fidelity clustering during the offline consolidation pass.
         self.task_buffer_feats.append(batch_features.detach().cpu())
         self.task_buffer_lbls.append(batch_labels.detach().cpu())
 
@@ -1269,6 +1257,41 @@ class BioEpisodicGraph(nn.Module):
             # Fallback to pseudo-inverse
             self._RLA_P = torch.matmul(torch.linalg.pinv(reg_A), B)
 
+    def _rebuild_rla_from_nodes(self):
+        """
+        Refines the RLA projection by anchoring it to high-fidelity episodic nodes.
+        This ensures P aligns the learned manifold (not noisy stream) to the ETF.
+        """
+        if self.nodes.shape[0] < 2 or self._etf_matrix is None:
+            return
+
+        # 1. Reset Accumulators
+        self._RLA_A.zero_()
+        self._RLA_B.zero_()
+
+        # 2. Vectorized Rebuild
+        # Nodes: (N_total, D), Labels: (N_total)
+        nodes = F.normalize(self.nodes.detach(), p=2, dim=1)
+        labels = self.node_labels
+        
+        # Calculate A: Global Auto-correlation (N x D)^T @ (N x D) -> (D x D)
+        self._RLA_A += torch.matmul(nodes.t(), nodes)
+
+        # Calculate B: Cross-correlation with ETF Targets
+        classes_list = self.seen_classes
+        label_to_idx = {lbl: i for i, lbl in enumerate(classes_list)}
+        
+        # Map every node to its target ETF vertex
+        target_indices = torch.tensor([label_to_idx[int(l.item())] for l in labels], device=self.device)
+        # ETF Vertices: (C_seen, D_align) -> target_vertices: (N_total, D_align)
+        target_vertices = self._etf_matrix[target_indices]
+        
+        # B: (D x N) @ (N x D_align) -> (D x D_align)
+        self._RLA_B += torch.matmul(nodes.t(), target_vertices)
+
+        # 3. Re-solve for Projection Matrix P
+        self._recursive_linear_alignment()
+
     def consolidate(self, lambda_val=0.1):
         """
         OFFLINE CONSOLIDATION: 
@@ -1457,6 +1480,24 @@ class BioEpisodicGraph(nn.Module):
         self.node_consistency = torch.zeros(len(self.nodes), device=self.device)
         self.node_fidelity = torch.zeros(len(self.nodes), device=self.device)
 
+        # STEP 5: MANIFOLD-ANCHORED RLA
+        # Finally, we use our high-fidelity nodes to re-calculate the optimal 
+        # projection P. This ensures System 2's alignment engine is perfectly 
+        # calibrated to the episodic memory (System 1).
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        if mode == "analytic_etf":
+            self._rebuild_rla_from_nodes()
+
+        # REFRESH performance cache (Projected Node Bank)
+        # This ensures System 1 inference is extremely fast.
+        with torch.no_grad():
+            if mode == "nc_align":
+                self.node_bank_aligned = self.align_layer(self.nodes)
+            elif mode == "analytic_etf" and self._RLA_P is not None:
+                self.node_bank_aligned = F.normalize(torch.matmul(self.nodes, self._RLA_P), p=2, dim=1)
+            else:
+                self.node_bank_aligned = F.normalize(self._project(self.nodes), p=2, dim=1)
+
     def predict_proto_logits(self, batch_features):
         """
         System 2 — Cortex (Long-term Prototype Memory).
@@ -1517,16 +1558,18 @@ class BioEpisodicGraph(nn.Module):
     def predict_node_logits(self, batch_features):
         """
         System 1 — Hippocampus (Episodic Node Memory).
-        DUAL-VIEW: Operates in the RAW backbone space to preserve generative 
-        manifold nuances that the discriminative projection might erase.
+        Operates in the ALIGNED space to stay calibrated with System 2.
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
         batch_features = batch_features.to(self.device)
         
-        # DUAL-VIEW: System 1 uses RAW backbone features
-        query_embed = F.normalize(batch_features, p=2, dim=1)
-        node_bank = F.normalize(self.nodes, p=2, dim=1) 
+        # Project input to Aligned Space
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        if mode == "analytic_etf" and self._RLA_P is not None:
+            query_aligned = F.normalize(torch.matmul(batch_features, self._RLA_P), p=2, dim=1)
+        else:
+            query_aligned = F.normalize(self._project(batch_features), p=2, dim=1)
 
         batch_size = batch_features.shape[0]
         max_cls = max(self.seen_classes) if self.seen_classes else -1
@@ -1536,64 +1579,26 @@ class BioEpisodicGraph(nn.Module):
         C = max_cls + 1
         device = self.device
         
-        if self.nodes.shape[0] > 0:
+        # Use performance cache (Pre-projected nodes)
+        if self.node_bank_aligned.shape[0] > 0:
             # (B, N_total_nodes)
-            logits_per_node = torch.matmul(query_embed, node_bank.t())
+            logits_per_node = torch.matmul(query_aligned, self.node_bank_aligned.t())
 
-            # ── Adaptive Temperature ────────────────────────────────────────
-            # For 1536-dim (SigLIP-2), the dot products are much higher.
-            # We scale the temperature proportional to dimensionality to 
-            # keep the Log-Sum-Exp competitive, not just 1-NN.
-            dim_factor = float(self.input_dim / 384.0)
-            density_temp = self.node_temp * 0.5 * dim_factor
-            
+            # ── Vectorized Log-Sum-Exp (Manifold Density) ────────────────────
+            # Sharp temperature to make System 1 a "Specialist"
+            density_temp = 0.02
             scaled_sims = logits_per_node / density_temp
             
-            # Expand labels for batch: (B, N_nodes)
             node_labels_expanded = self.node_labels.unsqueeze(0).expand(batch_size, -1)
             
-            # Get Max per class for numerical stability in LSE
-            m = torch.full((batch_size, C), -1e4, device=device)
-            m.scatter_reduce_(1, node_labels_expanded, scaled_sims, reduce='amax', include_self=False)
-            
-            # sum(exp(x - m))
-            max_per_node = m.gather(1, node_labels_expanded)
-            exp_diff = torch.exp(scaled_sims - max_per_node)
+            # Numerical Stability for LSE
+            m, _ = torch.max(scaled_sims, dim=1, keepdim=True)
+            exp_diff = torch.exp(scaled_sims - m)
             
             sum_exp = torch.zeros((batch_size, C), device=device)
             sum_exp.scatter_add_(1, node_labels_expanded, exp_diff)
             
-            # density_score = (m + log(sum_exp)) * temp
-            graph_logits = (m + torch.log(sum_exp + 1e-10)) * density_temp
-
-            if self._class_subspaces:
-                subspace_tensors = []
-                mu_tensors = []
-                
-                # In Dual-View, subspaces are always in RAW backbone space
-                curr_dim = self.input_dim
-                target_rank = getattr(Config, "BIO_SUBSPACE_RANK", 10)
-                
-                for lbl in range(C):
-                    if lbl in self._class_subspaces:
-                        V = self._class_subspaces[lbl] # (D, k_eff)
-                        if V.shape[1] < target_rank:
-                            padding = torch.zeros((curr_dim, target_rank - V.shape[1]), device=device)
-                            V = torch.cat([V, padding], dim=1)
-                        subspace_tensors.append(V)
-                        mu_tensors.append(self._get_proto(lbl))
-                    else:
-                        subspace_tensors.append(torch.zeros((curr_dim, target_rank), device=device))
-                        mu_tensors.append(torch.zeros(curr_dim, device=device))
-                
-                V_all = torch.stack(subspace_tensors)
-                Mu_all = torch.stack(mu_tensors)
-                
-                centered_queries = query_embed.unsqueeze(1) - Mu_all.unsqueeze(0)
-                proj_coeffs = torch.einsum('bcd,cdk->bck', centered_queries, V_all)
-                manifold_fit = torch.norm(proj_coeffs, dim=2)
-                
-                graph_logits = graph_logits + 0.5 * manifold_fit
+            graph_logits = m + torch.log(sum_exp + 1e-10)
         else:
             graph_logits = torch.full((batch_size, C), -1e4, device=self.device)
 
@@ -1601,44 +1606,35 @@ class BioEpisodicGraph(nn.Module):
 
     def predict_logits(self, batch_features):
         """
-        Coarse-to-Fine Dual-System Inference:
-        1. System 2 (Cortex) performs a global "coarse" alignment search.
-        2. Top-K candidates are passed to System 1 (Hippocampus).
-        3. System 1 performs "fine" local re-ranking using episodic density.
+        Collaborative Dual-System Inference:
+        1. Both systems provide scores in the Aligned Space.
+        2. Scores are converted to probabilities (Softmax) for fair fusion.
+        3. Local density breaks ties in the global alignment shortlist.
         """
         if not isinstance(batch_features, torch.Tensor):
             batch_features = torch.tensor(batch_features, dtype=torch.float32)
         batch_features = batch_features.to(self.device)
 
-        # Guard: nothing learned yet
-        if self.nodes.shape[0] == 0 and torch.sum(self.prototypes_counts) == 0:
-            out_dim = max(self.seen_classes) + 1 if self.seen_classes else 1
-            return torch.zeros((batch_features.shape[0], out_dim), device=self.device)
-
-        # 1. Coarse Global Alignment (System 2)
-        proto_logits = self.predict_proto_logits(batch_features) # (B, C)
+        # 1. Global alignment (System 2)
+        proto_logits = self.predict_proto_logits(batch_features)
         
-        # 2. Identify Top-K Candidates (The "Shortlist")
-        # We limit the episodic system to only score the most likely candidates.
+        # 2. Local density (System 1)
+        node_logits = self.predict_node_logits(batch_features)
+        
+        # 3. Softmax Fusion: Convert to Probabilities
+        # This prevents magnitude differences from drowning out the signal.
+        p_proto = F.softmax(proto_logits / 0.1, dim=1)
+        p_node  = F.softmax(node_logits, dim=1) # node_logits already temp-scaled
+        
+        # 4. Shortlist Re-ranking
         K = getattr(Config, "BIO_RERANK_K", 5)
-        C = proto_logits.shape[1]
-        top_k_indices = torch.topk(proto_logits, k=min(K, C), dim=1).indices # (B, K)
+        top_k_indices = torch.topk(p_proto, k=min(K, p_proto.shape[1]), dim=1).indices
+        mask = torch.zeros_like(p_node).scatter_(1, top_k_indices, 1.0)
+        p_node_masked = p_node * mask
         
-        # 3. Fine Local Discrimination (System 1)
-        node_logits = self.predict_node_logits(batch_features) # (B, C)
-        
-        # 4. RE-RANKING MASK: Zero out node evidence for non-candidates
-        mask = torch.zeros_like(node_logits).scatter_(1, top_k_indices, 1.0)
-        # Use a very low value for masked logits to effectively remove them from the vote
-        node_logits_masked = node_logits.masked_fill(mask == 0, -1e4)
-        
-        # 5. Hybrid Decision (Tie-Breaking)
-        # We trust System 1 more within the shortlist because it has local visual fidelity.
-        # If System 1 is confident about a candidate, it should break the tie.
+        # 5. Combine
         graph_weight = 1.0 - self.proto_weight
-        return graph_weight * (node_logits_masked / self.node_temp) + self.proto_weight * (
-            proto_logits / self.proto_temp
-        )
+        return self.proto_weight * p_proto + graph_weight * p_node_masked
 
     @property
     def codebooks(self):
