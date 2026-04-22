@@ -1,0 +1,696 @@
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🚀 [1/3] Component Ablation Table...
+
+📏 Running Standalone NCM Baseline (Stage 1 Logic)...
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 1: 98.15% | Breakdown: ['98.1%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 3: 96.58% | Breakdown: ['98.8%', '97.6%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 4: 95.76% | Breakdown: ['98.8%', '97.2%', '93.3%', '93.7%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 5: 96.28% | Breakdown: ['98.6%', '97.4%', '93.3%', '94.2%', '97.9%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 6: 96.08% | Breakdown: ['98.3%', '97.6%', '93.3%', '93.4%', '97.3%', '96.6%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 7: 95.62% | Breakdown: ['98.0%', '97.4%', '92.9%', '93.5%', '97.0%', '96.6%', '94.0%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 8: 95.08% | Breakdown: ['97.7%', '97.2%', '92.2%', '93.2%', '96.6%', '95.8%', '93.8%', '94.1%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 9: 94.96% | Breakdown: ['97.5%', '97.1%', '91.7%', '93.0%', '96.4%', '95.3%', '93.8%', '92.5%', '97.1%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 10: 94.96% | Breakdown: ['97.5%', '96.8%', '92.0%', '93.0%', '95.9%', '96.4%', '93.8%', '91.2%', '96.6%', '96.3%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 94.96% | Forgetting: 1.24%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 1: 97.84% | Breakdown: ['97.8%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 2: 98.55% | Breakdown: ['98.8%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 4: 96.36% | Breakdown: ['98.9%', '97.4%', '93.6%', '95.6%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 5: 96.88% | Breakdown: ['98.9%', '97.5%', '93.6%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 6: 96.54% | Breakdown: ['98.8%', '97.5%', '92.4%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 7: 96.23% | Breakdown: ['98.5%', '97.5%', '92.4%', '95.9%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 8: 95.95% | Breakdown: ['98.3%', '97.5%', '92.6%', '96.1%', '97.7%', '96.0%', '94.4%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 9: 95.60% | Breakdown: ['98.3%', '97.5%', '92.0%', '95.4%', '97.4%', '95.7%', '94.0%', '92.5%', '97.6%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 10: 95.74% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.9%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 95.74% | Forgetting: 0.96%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.7%)
+   -> AIA after Task 1: 98.15% | Breakdown: ['98.1%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.2%)
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 97.1%)
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.36% | Breakdown: ['98.9%', '97.4%', '93.6%', '95.6%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.88% | Breakdown: ['98.9%', '97.5%', '93.6%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.9%)
+   -> AIA after Task 6: 96.57% | Breakdown: ['98.6%', '97.6%', '92.6%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.6%)
+   -> AIA after Task 7: 96.23% | Breakdown: ['98.5%', '97.5%', '92.4%', '95.9%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.85% | Breakdown: ['98.3%', '97.4%', '92.4%', '95.7%', '97.4%', '96.0%', '94.6%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.59% | Breakdown: ['98.3%', '97.2%', '92.2%', '95.9%', '97.2%', '95.5%', '94.0%', '92.5%', '97.4%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.3%)
+   -> AIA after Task 10: 95.74% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.9%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.74% | Forgetting: 0.94%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+
+🚀 [2/3] Lambda Sweep...
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.7%)
+   -> AIA after Task 1: 97.99% | Breakdown: ['98.0%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.2%)
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 97.1%)
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.36% | Breakdown: ['98.9%', '97.4%', '93.6%', '95.6%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.83% | Breakdown: ['98.9%', '97.5%', '93.3%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.9%)
+   -> AIA after Task 6: 96.57% | Breakdown: ['98.6%', '97.6%', '92.6%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.6%)
+   -> AIA after Task 7: 96.20% | Breakdown: ['98.5%', '97.5%', '92.4%', '95.7%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.85% | Breakdown: ['98.3%', '97.4%', '92.4%', '95.7%', '97.4%', '96.0%', '94.6%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.59% | Breakdown: ['98.3%', '97.2%', '92.2%', '95.9%', '97.2%', '95.5%', '94.0%', '92.5%', '97.4%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.3%)
+   -> AIA after Task 10: 95.73% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.7%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.73% | Forgetting: 0.96%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.7%)
+   -> AIA after Task 1: 98.15% | Breakdown: ['98.1%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.2%)
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 97.1%)
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.36% | Breakdown: ['98.9%', '97.4%', '93.6%', '95.6%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.88% | Breakdown: ['98.9%', '97.5%', '93.6%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.9%)
+   -> AIA after Task 6: 96.57% | Breakdown: ['98.6%', '97.6%', '92.6%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.6%)
+   -> AIA after Task 7: 96.23% | Breakdown: ['98.5%', '97.5%', '92.4%', '95.9%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.85% | Breakdown: ['98.3%', '97.4%', '92.4%', '95.7%', '97.4%', '96.0%', '94.6%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.59% | Breakdown: ['98.3%', '97.2%', '92.2%', '95.9%', '97.2%', '95.5%', '94.0%', '92.5%', '97.4%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.3%)
+   -> AIA after Task 10: 95.74% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.9%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.74% | Forgetting: 0.94%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.7%)
+   -> AIA after Task 1: 98.15% | Breakdown: ['98.1%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.2%)
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 97.1%)
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.34% | Breakdown: ['98.9%', '97.4%', '93.3%', '95.7%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.81% | Breakdown: ['98.9%', '97.4%', '93.3%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 6: 96.56% | Breakdown: ['98.8%', '97.6%', '92.4%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.6%)
+   -> AIA after Task 7: 96.20% | Breakdown: ['98.5%', '97.5%', '92.2%', '95.9%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.85% | Breakdown: ['98.3%', '97.4%', '92.4%', '95.7%', '97.4%', '96.0%', '94.6%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.57% | Breakdown: ['98.3%', '97.2%', '92.2%', '95.9%', '97.2%', '95.5%', '93.8%', '92.5%', '97.4%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.3%)
+   -> AIA after Task 10: 95.73% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.7%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.95 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.73% | Forgetting: 0.93%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+
+🚀 [3/3] Node Count Sweep (Fixed alpha=0.5)...
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 29.1%)
+   -> AIA after Task 1: 37.87% | Breakdown: ['37.9%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 56.0%)
+   -> AIA after Task 2: 56.37% | Breakdown: ['33.4%', '79.4%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 52.6%)
+   -> AIA after Task 3: 52.90% | Breakdown: ['32.3%', '78.1%', '48.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 55.7%)
+   -> AIA after Task 4: 55.18% | Breakdown: ['30.8%', '77.4%', '46.4%', '66.1%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 53.0%)
+   -> AIA after Task 5: 52.73% | Breakdown: ['30.9%', '77.0%', '46.7%', '65.6%', '43.5%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 46.8%)
+   -> AIA after Task 6: 45.80% | Breakdown: ['30.4%', '77.6%', '46.4%', '66.4%', '43.5%', '10.5%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 43.5%)
+   -> AIA after Task 7: 42.59% | Breakdown: ['30.8%', '76.9%', '47.4%', '66.8%', '42.0%', '9.6%', '24.8%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 45.3%)
+   -> AIA after Task 8: 43.96% | Breakdown: ['31.1%', '77.1%', '47.4%', '66.4%', '42.6%', '8.5%', '24.4%', '54.2%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 43.0%)
+   -> AIA after Task 9: 42.32% | Breakdown: ['30.4%', '76.9%', '46.7%', '65.8%', '42.0%', '8.7%', '23.0%', '51.5%', '35.9%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 45.8%)
+   -> AIA after Task 10: 44.41% | Breakdown: ['31.4%', '76.7%', '45.5%', '66.6%', '42.3%', '8.5%', '22.8%', '48.9%', '33.6%', '67.7%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 31.11 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 44.41% | Forgetting: 2.74%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.4%)
+   -> AIA after Task 1: 98.92% | Breakdown: ['98.9%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.4%)
+   -> AIA after Task 2: 97.29% | Breakdown: ['97.2%', '97.4%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 94.9%)
+   -> AIA after Task 3: 93.56% | Breakdown: ['96.1%', '95.6%', '89.0%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 95.7%)
+   -> AIA after Task 4: 94.19% | Breakdown: ['97.4%', '96.3%', '90.1%', '93.0%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 96.6%)
+   -> AIA after Task 5: 95.18% | Breakdown: ['98.1%', '96.5%', '89.4%', '94.2%', '97.6%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.6%)
+   -> AIA after Task 6: 95.82% | Breakdown: ['98.3%', '97.1%', '90.6%', '94.2%', '97.4%', '97.3%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.0%)
+   -> AIA after Task 7: 95.28% | Breakdown: ['97.8%', '97.1%', '90.8%', '93.7%', '97.2%', '95.7%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 95.5%)
+   -> AIA after Task 8: 95.03% | Breakdown: ['97.7%', '97.1%', '91.3%', '93.9%', '97.3%', '95.5%', '94.6%', '93.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 95.7%)
+   -> AIA after Task 9: 95.08% | Breakdown: ['97.7%', '97.1%', '90.8%', '94.5%', '97.2%', '96.0%', '93.8%', '90.8%', '97.7%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 95.7%)
+   -> AIA after Task 10: 94.98% | Breakdown: ['97.2%', '96.4%', '91.3%', '93.7%', '97.3%', '95.5%', '93.3%', '91.0%', '97.1%', '97.0%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 76.12 MB
+   ✅ Selected alpha: 0.30 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 94.98% | Forgetting: 1.07%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.1%)
+   -> AIA after Task 1: 98.61% | Breakdown: ['98.6%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.4%)
+   -> AIA after Task 2: 98.27% | Breakdown: ['98.6%', '97.9%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 96.8%)
+   -> AIA after Task 3: 96.68% | Breakdown: ['98.6%', '97.6%', '93.8%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.28% | Breakdown: ['98.9%', '97.2%', '93.6%', '95.4%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.64% | Breakdown: ['98.8%', '97.5%', '93.3%', '95.6%', '98.0%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 97.0%)
+   -> AIA after Task 6: 96.49% | Breakdown: ['98.8%', '97.6%', '92.2%', '95.7%', '97.9%', '96.8%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 96.7%)
+   -> AIA after Task 7: 96.06% | Breakdown: ['98.3%', '97.4%', '92.2%', '95.4%', '97.9%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.87% | Breakdown: ['98.3%', '97.8%', '92.6%', '95.6%', '97.7%', '95.8%', '94.4%', '94.7%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.56% | Breakdown: ['98.3%', '97.5%', '91.7%', '95.6%', '97.4%', '95.5%', '93.8%', '92.5%', '97.6%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.2%)
+   -> AIA after Task 10: 95.72% | Breakdown: ['98.5%', '97.1%', '91.7%', '95.6%', '97.6%', '96.2%', '93.7%', '93.0%', '97.4%', '96.5%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 112.83 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.72% | Forgetting: 0.83%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+🔄 Preparing Dataset: IMAGENET_R...
+   📐 Preprocessing: 384px, norm=custom
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+💾 Loading cached siglip2 features for imagenet_r (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 97.7%)
+   -> AIA after Task 1: 98.15% | Breakdown: ['98.1%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 98.2%)
+   -> AIA after Task 2: 98.63% | Breakdown: ['98.9%', '98.3%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 97.1%)
+   -> AIA after Task 3: 96.48% | Breakdown: ['98.6%', '97.5%', '93.3%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.0%)
+   -> AIA after Task 4: 96.36% | Breakdown: ['98.9%', '97.4%', '93.6%', '95.6%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 97.2%)
+   -> AIA after Task 5: 96.88% | Breakdown: ['98.9%', '97.5%', '93.6%', '96.3%', '98.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.9%)
+   -> AIA after Task 6: 96.57% | Breakdown: ['98.6%', '97.6%', '92.6%', '95.7%', '97.9%', '96.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.6%)
+   -> AIA after Task 7: 96.23% | Breakdown: ['98.5%', '97.5%', '92.4%', '95.9%', '98.0%', '96.6%', '94.7%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 96.5%)
+   -> AIA after Task 8: 95.85% | Breakdown: ['98.3%', '97.4%', '92.4%', '95.7%', '97.4%', '96.0%', '94.6%', '95.0%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 96.5%)
+   -> AIA after Task 9: 95.59% | Breakdown: ['98.3%', '97.2%', '92.2%', '95.9%', '97.2%', '95.5%', '94.0%', '92.5%', '97.4%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 96.3%)
+   -> AIA after Task 10: 95.74% | Breakdown: ['98.3%', '97.0%', '92.0%', '95.9%', '97.6%', '96.2%', '93.5%', '93.0%', '97.4%', '96.6%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 113.99 MB
+   ✅ Selected alpha: 1.00 (Tuned on 239 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 95.74% | Forgetting: 0.94%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r_siglip2.png / .svg
+
+✅ Ablations complete. Saved to results/ablation_siglip2_imagenet_r.json

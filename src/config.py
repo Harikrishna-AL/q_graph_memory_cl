@@ -46,7 +46,7 @@ class Config:
     GRAPH_CLASS_AGG = "mean"  # options: "sum" or "mean"
 
     # Bio Graph Defaults
-    BIO_PROTO_WEIGHT = 0.55
+    BIO_PROTO_WEIGHT = 0.40
     BIO_NODE_TEMP = 0.08
     BIO_PROTO_TEMP = 0.10
     BIO_MERGE_THRESHOLD = 0.30
