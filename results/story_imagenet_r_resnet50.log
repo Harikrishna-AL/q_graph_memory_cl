@@ -1,0 +1,177 @@
+==================================================
+ 📖 RUNNING THE 5-STAGE TQM PAPER NARRATIVE 📖
+ Dataset: IMAGENET_R | Backbone: RESNET50
+==================================================
+
+⚠️  No cache found at cache/imagenet_r_resnet50_train_features.npy
+🔄 Preparing Dataset: IMAGENET_R...
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200
+🏗️  Loading resnet50 (dim=2048)...
+🔍 Extracting Features (this may take a moment)...
+✅ Cached 30000 features to cache/imagenet_r_resnet50_train_features.npy
+
+🚀 --- STAGE: 1. Standard NCM ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [1. Standard NCM] Finished in 39.8s
+   🏆 AIA: 3.36% | Forgetting: 44.14% | Memory: 89.98 MB
+
+🚀 --- STAGE: 2. Basic Replay (Raw Features) ---
+✅ [2. Basic Replay (Raw Features)] Finished in 5.7s
+   🏆 AIA: 39.77% | Forgetting: 6.19% | Memory: 187.47 MB
+
+🚀 --- STAGE: 2b. Optimized Replay (Linear + ER) ---
+✅ [2b. Optimized Replay (Linear + ER)] Finished in 9.1s
+   🏆 AIA: 46.77% | Forgetting: 0.55% | Memory: 187.47 MB
+
+🚀 --- STAGE: 3. Node-Replay (Episodic Graph Only) ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [3. Node-Replay (Episodic Graph Only)] Finished in 40.2s
+   🏆 AIA: 41.54% | Forgetting: 6.09% | Memory: 89.98 MB
+
+🚀 --- STAGE: 4. N-Node Sweeps (Varying graph capacity) ---
+
+🚀 --- STAGE: Sweep Floor=0.1 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.1] Finished in 39.3s
+   🏆 AIA: 41.43% | Forgetting: 6.05% | Memory: 89.50 MB
+
+🚀 --- STAGE: Sweep Floor=0.4 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.4] Finished in 39.8s
+   🏆 AIA: 41.58% | Forgetting: 6.07% | Memory: 90.33 MB
+
+🚀 --- STAGE: Sweep Floor=0.8 ---
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ Bio-Graph Training Complete.
+✅ [Sweep Floor=0.8] Finished in 39.7s
+   🏆 AIA: 41.57% | Forgetting: 6.06% | Memory: 90.39 MB
+
+🚀 --- STAGE: 5. Full TQM Algorithm (Ours) ---
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 21601 | Val samples: 2395
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 71.3%)
+   -> AIA after Task 1: 63.21% | Breakdown: ['63.2%']
+
+   📚 Training Task 2/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 57.1%)
+   -> AIA after Task 2: 52.40% | Breakdown: ['56.9%', '47.9%']
+
+   📚 Training Task 3/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 55.4%)
+   -> AIA after Task 3: 50.51% | Breakdown: ['54.9%', '45.2%', '51.5%']
+
+   📚 Training Task 4/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 49.9%)
+   -> AIA after Task 4: 45.86% | Breakdown: ['51.3%', '43.2%', '40.7%', '48.2%']
+
+   📚 Training Task 5/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 46.1%)
+   -> AIA after Task 5: 42.11% | Breakdown: ['49.0%', '40.9%', '40.5%', '47.0%', '33.2%']
+
+   📚 Training Task 6/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 42.5%)
+   -> AIA after Task 6: 40.55% | Breakdown: ['48.5%', '38.9%', '40.5%', '45.7%', '33.8%', '35.9%']
+
+   📚 Training Task 7/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 39.2%)
+   -> AIA after Task 7: 37.84% | Breakdown: ['48.8%', '38.2%', '40.9%', '44.1%', '33.1%', '30.5%', '29.2%']
+
+   📚 Training Task 8/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 39.0%)
+   -> AIA after Task 8: 37.04% | Breakdown: ['51.6%', '37.1%', '40.0%', '43.3%', '33.1%', '25.6%', '27.2%', '38.4%']
+
+   📚 Training Task 9/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 39.0%)
+   -> AIA after Task 9: 37.87% | Breakdown: ['47.4%', '36.6%', '41.1%', '44.1%', '32.1%', '26.0%', '26.4%', '27.6%', '59.5%']
+
+   📚 Training Task 10/10
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 37.1%)
+   -> AIA after Task 10: 36.49% | Breakdown: ['47.3%', '36.6%', '40.2%', '43.6%', '32.0%', '25.1%', '26.5%', '31.4%', '53.1%', '29.2%']
+✅ Memory trace saved → outputs/memory_trace_imagenet_r.png / .svg
+   🧠 Bio-Graph Memory Footprint: 54.84 MB
+   🔎 Val alpha=0.00 -> acc=28.64%
+   🔎 Val alpha=0.30 -> acc=31.61%
+   🔎 Val alpha=0.50 -> acc=33.28%
+   🔎 Val alpha=0.70 -> acc=36.16%
+   🔎 Val alpha=0.80 -> acc=37.12%
+   🔎 Val alpha=0.90 -> acc=36.12%
+   🔎 Val alpha=1.00 -> acc=30.69%
+   ✅ Selected alpha: 0.80 | Val Acc: 37.12%
+
+   🏆 Pure CIL Metrics -> AIA: 36.49% | Forgetting: 7.99%
+✅ Memory comparison saved → outputs/memory_comparison_imagenet_r.png / .svg
+✅ [5. Full TQM Algorithm (Ours)] Finished in 65.0s
+   🏆 AIA: 36.49% | Memory: 54.84 MB
+
+==================================================
+ 🎯 FINAL STORYLINE RESULTS 
+==================================================
+1. Standard NCM          | AIA: 3.4% | Mem: ~0 MB
+2. Replay (Raw Features) | AIA: 39.8% | Mem: 187.5 MB
+2b. Replay (Linear + ER) | AIA: 46.8% | Mem: 187.5 MB
+3. Node-Replay Only      | AIA: 41.5% | Mem: 90.0 MB
+4. N-Node Sweeps (Best)  | AIA: 41.6% | Mem: 90.3 MB  [Floor=0.40]
+5. **TQM (Full)**        | AIA: 36.5% | Mem: 54.8 MB
+==================================================

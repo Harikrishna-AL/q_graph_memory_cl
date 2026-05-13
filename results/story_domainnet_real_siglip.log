@@ -1,0 +1,10 @@
+==================================================
+ 📖 RUNNING THE 5-STAGE TQM PAPER NARRATIVE 📖
+ Dataset: DOMAINNET_REAL | Backbone: SIGLIP
+==================================================
+
+⚠️  No cache found at cache/domainnet_real_siglip_train_features.npy
+🔄 Preparing Dataset: DOMAINNET_REAL...
+✅ DomainNet (real) found at ./data/domainnet/real
+ℹ️  Note: DomainNet split is handled in main.py (80/20 per task).
+✅ Loaded 175327 images. Classes expected: 345

@@ -1,0 +1,10 @@
+==================================================
+ 📖 RUNNING THE 5-STAGE TQM PAPER NARRATIVE 📖
+ Dataset: IMAGENET_R | Backbone: SIGLIP
+==================================================
+
+⚠️  No cache found at cache/imagenet_r_siglip_train_features.npy
+🔄 Preparing Dataset: IMAGENET_R...
+✅ ImageNet-R found at ./data/imagenet-r
+ℹ️  Note: ImageNet-R is a single folder. Train/Test splitting happens in main.py.
+✅ Loaded 30000 images. Classes expected: 200

@@ -1,0 +1,9 @@
+==================================================
+ 📖 RUNNING THE 5-STAGE TQM PAPER NARRATIVE 📖
+ Dataset: TINYIMAGENET | Backbone: SIGLIP
+==================================================
+
+⚠️  No cache found at cache/tinyimagenet_siglip_train_features.npy
+🔄 Preparing Dataset: TINYIMAGENET...
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200

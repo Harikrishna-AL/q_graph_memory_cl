@@ -1,2 +1,10 @@
 data/
 outputs/
+*.pth
+*.pt
+cache/
+__pycache__/
+.DS_Store
+
+*.svg
+svg3d*.py
