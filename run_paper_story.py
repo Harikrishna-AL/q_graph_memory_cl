@@ -44,10 +44,82 @@ def parse_args():
 
     parser.add_argument("--use_etf", action="store_true", help="Anchor prototypes to a fixed Equiangular Tight Frame (ETF)")
 
-    parser.add_argument("--stages", nargs="+", type=str, default=["0", "1", "2", "2b", "3", "4", "5", "5b"], 
-                        help="Stages to run: 0 (Vanilla NCM), 1 (Standard NCM), 2 (Replay), 2b (ER+MLP), 3 (Nodes), 4 (Sweeps), 5 (MAYA Full), 5b (MAYA+Linear)")
+    parser.add_argument("--raw-vector-budget-mb", type=float, default=None,
+                        help="memory budget for stage 2c raw-vector exemplar baseline; if omitted, uses the TQM per-class node budget")
+    parser.add_argument("--stages", nargs="+", type=str, default=["0", "1", "2", "2b", "2c", "3", "4", "5", "5b"], 
+                        help="Stages to run: 0 (Vanilla NCM), 1 (Standard NCM), 2 (Replay), 2b (ER+MLP), 2c (Memory-matched raw vectors), 3 (Nodes), 4 (Sweeps), 5 (MAYA Full), 5b (MAYA+Linear)")
     
     return parser.parse_args()
+
+
+class MemoryMatchedRawVectorBank:
+    """
+    Class-balanced raw-vector exemplar baseline.
+
+    This stores actual backbone features, not compressed nodes/prototypes.  Under
+    a fixed MB budget it repartitions capacity uniformly across seen classes, so
+    each class gets multiple raw exemplars while total memory stays controlled.
+    """
+
+    def __init__(self, feature_dim, budget_mb=None, seed=42):
+        self.feature_dim = int(feature_dim)
+        self.budget_mb = budget_mb
+        self.rng = np.random.default_rng(seed)
+        self.features_by_class = {}
+
+    def _vectors_per_class(self):
+        n_classes = max(1, len(self.features_by_class))
+        if self.budget_mb is not None:
+            total_vectors = int((self.budget_mb * (1024 ** 2)) // (self.feature_dim * 4))
+            return max(1, total_vectors // n_classes)
+        return max(1, int(Config.BIO_MAX_NODES_PER_CLASS * Config.BIO_DYNAMIC_BUDGET_FLOOR))
+
+    def _rebalance(self):
+        cap = self._vectors_per_class()
+        for cls, feats in list(self.features_by_class.items()):
+            if len(feats) <= cap:
+                continue
+            keep = self.rng.choice(len(feats), size=cap, replace=False)
+            self.features_by_class[cls] = feats[keep]
+
+    def update(self, features, labels):
+        features = np.asarray(features, dtype=np.float32)
+        labels = np.asarray(labels, dtype=np.int64)
+        for cls in np.unique(labels):
+            cls = int(cls)
+            cls_feats = features[labels == cls]
+            if cls in self.features_by_class:
+                self.features_by_class[cls] = np.concatenate([self.features_by_class[cls], cls_feats], axis=0)
+            else:
+                self.features_by_class[cls] = cls_feats.copy()
+        self._rebalance()
+
+    def memory_mb(self):
+        n_vectors = sum(len(v) for v in self.features_by_class.values())
+        return n_vectors * self.feature_dim * 4 / (1024 ** 2)
+
+    def predict(self, queries, batch_size=512):
+        if not self.features_by_class:
+            raise RuntimeError("Raw-vector bank is empty; call update() first.")
+
+        classes = np.array(sorted(self.features_by_class.keys()), dtype=np.int64)
+        bank = np.concatenate([self.features_by_class[int(c)] for c in classes], axis=0).astype(np.float32)
+        bank_labels = np.concatenate([
+            np.full(len(self.features_by_class[int(c)]), c, dtype=np.int64) for c in classes
+        ])
+        bank = bank / (np.linalg.norm(bank, axis=1, keepdims=True) + 1e-8)
+
+        preds = []
+        queries = np.asarray(queries, dtype=np.float32)
+        for start in range(0, len(queries), batch_size):
+            q = queries[start:start + batch_size]
+            q = q / (np.linalg.norm(q, axis=1, keepdims=True) + 1e-8)
+            sims = q @ bank.T
+            class_scores = np.full((len(q), len(classes)), -np.inf, dtype=np.float32)
+            for i, cls in enumerate(classes):
+                class_scores[:, i] = sims[:, bank_labels == cls].max(axis=1)
+            preds.append(classes[np.argmax(class_scores, axis=1)])
+        return np.concatenate(preds)
 
 def main():
     args = parse_args()
@@ -246,6 +318,37 @@ def main():
         results_summary["2b"] = res
         forgetting_data["ER+MLP"] = res[2]
 
+    # STAGE 2c: raw-vector exemplars with the same memory regime as TQM
+    if "2c" in args.stages:
+        buf2c = MemoryMatchedRawVectorBank(
+            feature_dim=Config.FEATURE_DIM,
+            budget_mb=args.raw_vector_budget_mb,
+            seed=Config.SEED,
+        )
+        if args.raw_vector_budget_mb is None:
+            auto_k = max(1, int(Config.BIO_MAX_NODES_PER_CLASS * Config.BIO_DYNAMIC_BUDGET_FLOOR))
+            print(f"\nℹ️  Stage 2c auto budget: {auto_k} raw vectors/class "
+                  f"({auto_k * Config.FEATURE_DIM * 4 / (1024 ** 2):.3f} MB/class)")
+        else:
+            print(f"\nℹ️  Stage 2c budget: {args.raw_vector_budget_mb:.2f} MB total raw-vector memory")
+
+        def train_s2c(tid, x, y):
+            buf2c.update(x, y)
+            return buf2c.memory_mb()
+
+        def eval_s2c(tid, x, y):
+            preds = buf2c.predict(x)
+            y_np = np.array(y)
+            return [
+                float(np.mean(preds[(y_np >= t*CPT) & (y_np < (t+1)*CPT)] == y_np[(y_np >= t*CPT) & (y_np < (t+1)*CPT)]))
+                if ((y_np >= t*CPT) & (y_np < (t+1)*CPT)).any() else 0.0
+                for t in range(tid+1)
+            ]
+
+        res = run_cil_stream("2c. Memory-Matched Raw Vectors", eval_s2c, train_s2c)
+        results_summary["2c"] = res
+        forgetting_data["Raw Vectors (Budget)"] = res[2]
+
     # STAGE 3
     if "3" in args.stages:
         s3_model = BioEpisodicGraph(input_dim=Config.FEATURE_DIM)
@@ -307,9 +410,9 @@ def main():
     print("\n==================================================")
     print(" 🎯 FINAL STORYLINE RESULTS ")
     print("==================================================")
-    for k in ["0", "1", "2", "2b", "3", "4", "5", "5b"]:
+    for k in ["0", "1", "2", "2b", "2c", "3", "4", "5", "5b"]:
         if k in results_summary:
-            label = {"0":"Vanilla NCM", "1":"Standard NCM", "2":"Replay", "2b":"ER+MLP", "3":"Nodes", "4":"Sweeps", "5":"MAYA Full", "5b":"MAYA+Linear"}[k]
+            label = {"0":"Vanilla NCM", "1":"Standard NCM", "2":"Replay", "2b":"ER+MLP", "2c":"Raw Vec Budget", "3":"Nodes", "4":"Sweeps", "5":"MAYA Full", "5b":"MAYA+Linear"}[k]
             aia, mem = results_summary[k][:2]
             print(f"{k}. {label:<20} | AIA: {aia*100:.1f}% | Mem: {mem:.1f} MB" + (f" [F={results_summary[k][2]:.2f}]" if k=="4" else ""))
     print("==================================================")

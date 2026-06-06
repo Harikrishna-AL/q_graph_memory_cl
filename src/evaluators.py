@@ -1212,18 +1212,18 @@ def plot_pareto_accuracy_memory(results_summary, dataset_name="dataset"):
     """
     LABELS = {
         "0": "Vanilla NCM", "1": "NCM", "2": "Replay",
-        "2b": "ER+MLP", "3": "Node-Replay", "4": "N-Node Sweep",
-        "5": "MAYA", "5b": "MAYA+Linear",
+        "2b": "ER+MLP", "2c": "Raw Vec Budget", "3": "Node-Replay",
+        "4": "N-Node Sweep", "5": "MAYA", "5b": "MAYA+Linear",
     }
     COLORS = {
         "0": "#9e9e9e", "1": "#2ca02c", "2": "#d62728",
-        "2b": "#e377c2", "3": "#ff7f0e", "4": "#bcbd22",
-        "5": "#1f77b4", "5b": "#17becf",
+        "2b": "#e377c2", "2c": "#9467bd", "3": "#ff7f0e",
+        "4": "#bcbd22", "5": "#1f77b4", "5b": "#17becf",
     }
     MARKERS = {
         "0": "v", "1": "^", "2": "s",
-        "2b": "D", "3": "p", "4": "h",
-        "5": "*", "5b": "P",
+        "2b": "D", "2c": "X", "3": "p",
+        "4": "h", "5": "*", "5b": "P",
     }
 
     if not results_summary:

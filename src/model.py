@@ -1295,42 +1295,63 @@ class BioEpisodicGraph(nn.Module):
     def consolidate(self, lambda_val=0.1):
         """
         OFFLINE CONSOLIDATION: 
-        1. Extract high-fidelity nodes from the task buffer (Hippocampal Sleep).
-        2. Transfer essence to prototypes and prune graph (Cortical Consolidation).
+        1. Define the current alignment space (Solve P).
+        2. Extract high-fidelity nodes by clustering in the ALIGNED space.
+        3. Transfer essence to prototypes and prune the graph.
         """
-        # STEP 0: Task-Level Node Extraction (Hippocampal Sleep)
+        # STEP 1: SOLVE FOR PROJECTION FIRST
+        # This ensures our "lens" (P) is up-to-date with the latest task's statistics.
+        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        if mode == "analytic_etf":
+            self._recursive_linear_alignment()
+
+        # STEP 2: TASK-LEVEL NODE EXTRACTION (Aligned Clustering)
         if len(self.task_buffer_feats) > 0:
             from sklearn.cluster import KMeans
-            all_task_feats = torch.cat(self.task_buffer_feats, dim=0)
-            all_task_lbls = torch.cat(self.task_buffer_lbls, dim=0)
+            # Move buffer to device for projection
+            all_task_feats = torch.cat(self.task_buffer_feats, dim=0).to(self.device)
+            all_task_lbls = torch.cat(self.task_buffer_lbls, dim=0).to(self.device)
+
+            # Project buffer using the newly solved P
+            with torch.no_grad():
+                if mode == "analytic_etf" and self._RLA_P is not None:
+                    all_task_feats_aligned = F.normalize(torch.matmul(all_task_feats, self._RLA_P), p=2, dim=1)
+                else:
+                    all_task_feats_aligned = F.normalize(self._project(all_task_feats), p=2, dim=1)
 
             unique_task_labels = torch.unique(all_task_lbls)
             for lbl_t in unique_task_labels:
                 lbl = int(lbl_t.item())
-                class_feats = all_task_feats[all_task_lbls == lbl_t]
+                mask = all_task_lbls == lbl_t
+                class_feats_raw = all_task_feats[mask]
+                class_feats_aligned = all_task_feats_aligned[mask]
                 
-                n_clusters = min(self.kmeans_per_class, class_feats.shape[0])
-                if class_feats.shape[0] >= 12: n_clusters = max(2, n_clusters)
+                n_clusters = min(self.kmeans_per_class, class_feats_aligned.shape[0])
+                if class_feats_aligned.shape[0] >= 12: n_clusters = max(2, n_clusters)
                 else: n_clusters = 1
 
-                class_np = class_feats.numpy()
+                class_np_aligned = class_feats_aligned.cpu().numpy()
                 kmeans = KMeans(n_clusters=n_clusters, n_init=5, random_state=Config.SEED)
-                kmeans.fit(class_np)
+                kmeans.fit(class_np_aligned)
 
-                new_nodes = torch.tensor(kmeans.cluster_centers_, dtype=torch.float32, device=self.device)
-                new_nodes = F.normalize(new_nodes, p=2, dim=1)
+                # Use the cluster assignments to calculate high-fidelity RAW nodes.
+                # This follows the mentor's advice (clustering in aligned space) 
+                # but preserves raw visual fidelity for System 1.
+                labels = torch.tensor(kmeans.labels_, device=self.device)
+                for c_idx in range(n_clusters):
+                    cluster_mask = (labels == c_idx)
+                    if cluster_mask.any():
+                        node_vec = class_feats_raw[cluster_mask].mean(dim=0)
+                        self._append_node(F.normalize(node_vec, p=2, dim=0), lbl)
 
-                for node_vec in new_nodes:
-                    self._append_node(node_vec, lbl)
-
+            # Clear buffer for next task
             self.task_buffer_feats = []
             self.task_buffer_lbls = []
 
         if len(self.nodes) == 0:
             return
 
-        # STEP 1: Score every node (Importance weights)
-        # Ω(v) = Frequency × Strength × Consistency × Fidelity
+        # STEP 3: SCORE EVERY NODE (Importance weights)
         omega = (
             self._norm01(self.node_freq)
             * self._norm01(self.node_strength)
@@ -1338,7 +1359,7 @@ class BioEpisodicGraph(nn.Module):
             * self._norm01(self.node_fidelity)
         )
 
-        # STEP 2 & 3: Compute consolidated prototype and update NCM
+        # STEP 4: COMPUTE CONSOLIDATED PROTOTYPES
         unique_labels = torch.unique(self.node_labels)
         for lbl in unique_labels:
             mask = self.node_labels == lbl
@@ -1346,150 +1367,100 @@ class BioEpisodicGraph(nn.Module):
             omega_class = omega[mask]
 
             if omega_class.sum() > 0:
-                mu_consolidated = (omega_class.unsqueeze(1) * v_class).sum(
-                    dim=0
-                ) / omega_class.sum()
+                mu_consolidated = (omega_class.unsqueeze(1) * v_class).sum(dim=0) / omega_class.sum()
                 old_proto = self._get_proto(int(lbl.item()))
                 new_proto = (1 - lambda_val) * old_proto + lambda_val * mu_consolidated
                 
-                # Write back into dicts
-                # Normalise keeping total count same: just assign new_proto * count to sum
                 count = max(1.0, self._proto_count[int(lbl.item())])
                 self._proto_sum[int(lbl.item())] = new_proto * count
 
-        # STEP 3.5: Discriminative prototype optimization
-        if (
-            getattr(Config, "BIO_USE_DISCRIM_CONSOLIDATION", True)
-            and len(unique_labels) > 0
-        ):
-            mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        # STEP 5: DISCRIMINATIVE PROTOTYPE OPTIMIZATION
+        if getattr(Config, "BIO_USE_DISCRIM_CONSOLIDATION", True) and len(unique_labels) > 0:
             if mode == "analytic":
                 self._analytic_prototype_refinement()
             elif mode == "analytic_etf":
-                self._recursive_linear_alignment()
+                # We skip another RLA solve here since we did it in Step 1, 
+                # but we keep the hook for future specialized refinements.
+                pass 
             elif mode == "nc_align":
                 self._nc_alignment_optimization(omega)
             else:
                 self._discriminative_proto_optimization(omega)
 
-        # STEP 3.6: Sleep-phase metric projection learning (hard-negative contrastive)
-        if self.use_projection and len(unique_labels) > 0:
+        # STEP 6: SLEEP-PHASE METRIC PROJECTION LEARNING (SGD fallback)
+        if self.use_projection and len(unique_labels) > 1 and mode == "sgd":
             active_labels = torch.unique(self.node_labels)
-            if active_labels.numel() > 1 and self.nodes.shape[0] > 0:
-                label_to_pos = {
-                    int(lbl.item()): i for i, lbl in enumerate(active_labels)
-                }
-                node_label_pos = torch.tensor(
-                    [label_to_pos[int(lbl.item())] for lbl in self.node_labels],
-                    dtype=torch.long,
-                    device=self.device,
-                )
+            label_to_pos = {int(lbl.item()): i for i, lbl in enumerate(active_labels)}
+            node_label_pos = torch.tensor([label_to_pos[int(lbl.item())] for lbl in self.node_labels], dtype=torch.long, device=self.device)
+            nodes = self.nodes.detach()
+            proto_list = [self._get_proto(int(lbl.item())) for lbl in active_labels]
+            protos = torch.stack(proto_list).detach()
+            weights = omega.detach() + 1e-6
+            p_var = self.proj_matrix.detach().clone().requires_grad_(True)
+            opt_p = torch.optim.Adam([p_var], lr=float(self.proj_lr))
+            p_margin = float(self.proj_margin)
+            p_steps = max(1, int(self.proj_steps))
+            ortho_reg = float(self.proj_ortho_reg)
 
-                nodes = self.nodes.detach()
-                proto_list = [self._get_proto(int(lbl.item())) for lbl in active_labels]
-                protos = torch.stack(proto_list).detach()
-                weights = omega.detach() + 1e-6
+            for _ in range(p_steps):
+                opt_p.zero_grad()
+                z_nodes = F.normalize(self._project(nodes, p_var), p=2, dim=1)
+                z_proto = F.normalize(self._project(protos, p_var), p=2, dim=1)
+                sims = torch.matmul(z_nodes, z_proto.t())
+                pos = sims.gather(1, node_label_pos.view(-1, 1)).squeeze(1)
+                cls_mask = F.one_hot(node_label_pos, num_classes=active_labels.numel()).bool()
+                neg = sims.masked_fill(cls_mask, -1e4).max(dim=1).values
+                loss_rank = (torch.relu(p_margin + neg - pos) * weights).sum() / weights.sum()
+                loss_pull = ((1.0 - pos) * weights).sum() / weights.sum()
+                gram = torch.matmul(p_var.t(), p_var)
+                ident = torch.eye(gram.shape[0], device=self.device)
+                loss_ortho = torch.mean((gram - ident) ** 2)
+                loss = loss_rank + 0.5 * loss_pull + ortho_reg * loss_ortho
+                loss.backward()
+                opt_p.step()
+            self.proj_matrix.copy_(p_var.detach())
 
-                p_var = self.proj_matrix.detach().clone().requires_grad_(True)
-                opt_p = torch.optim.Adam([p_var], lr=float(self.proj_lr))
-                p_margin = float(self.proj_margin)
-                p_steps = max(1, int(self.proj_steps))
-                ortho_reg = float(self.proj_ortho_reg)
-
-                for _ in range(p_steps):
-                    opt_p.zero_grad()
-
-                    z_nodes = F.normalize(self._project(nodes, p_var), p=2, dim=1)
-                    z_proto = F.normalize(self._project(protos, p_var), p=2, dim=1)
-                    sims = torch.matmul(z_nodes, z_proto.t())  # (N, C_active)
-
-                    pos = sims.gather(1, node_label_pos.view(-1, 1)).squeeze(1)
-                    cls_mask = F.one_hot(
-                        node_label_pos, num_classes=active_labels.numel()
-                    ).bool()
-                    neg = sims.masked_fill(cls_mask, -1e4).max(dim=1).values
-                    loss_rank = (
-                        torch.relu(p_margin + neg - pos) * weights
-                    ).sum() / weights.sum()
-                    loss_pull = ((1.0 - pos) * weights).sum() / weights.sum()
-
-                    gram = torch.matmul(p_var.t(), p_var)
-                    ident = torch.eye(gram.shape[0], device=self.device)
-                    loss_ortho = torch.mean((gram - ident) ** 2)
-
-                    loss = loss_rank + 0.5 * loss_pull + ortho_reg * loss_ortho
-                    loss.backward()
-                    opt_p.step()
-
-                self.proj_matrix.copy_(p_var.detach())
-
-        # STEP 4: Prune redundant nodes (Boundary Specialist Logic)
-        # 1. Fidelity: Did this node always predict the right class?
-        # A boundary specialist must be accurate, otherwise it's just noise.
+        # STEP 7: PRUNE REDUNDANT NODES (Boundary Specialist Logic)
         node_fidelity_rate = self.node_fidelity / (self.node_freq + 1e-6)
         fidelity_score = self._norm01(node_fidelity_rate)
-        
-        # 2. Hardness: How far is this from the Global Prototype?
-        # High distance means it captures a visual mode the prototype doesn't "see" well.
         node_protos = torch.stack([self._get_proto(int(lbl.item())) for lbl in self.node_labels])
         dist_to_proto = torch.norm(self.nodes - node_protos, dim=1)
         hardness_score = self._norm01(dist_to_proto)
-
-        # 3. Consistency: Has this node been stable over time?
-        consistency_score = self._norm01(self.node_consistency)
-
-        # FINAL PRIORITY: Balanced Memory
-        # We want a mix of "Core" nodes (near the mean) and "Specialist" nodes (at boundaries).
-        # This prevents System 1 from becoming a pure outlier detector.
         
-        # Prototypicality (The Core)
-        core_score = 1.0 - hardness_score # High for nodes near the mean
-        
-        # We use a Max-Heuristic: A node is valuable if it's a great "Core" 
-        # OR a great "Specialist".
+        # Balanced Memory Priority
+        core_score = 1.0 - hardness_score
         combined_score = torch.max(0.6 * core_score, 0.8 * hardness_score)
-        
-        # Boost by accuracy (Fidelity)
         pre_priority = combined_score * (0.7 + 0.3 * fidelity_score)
 
-        # Pruning thresholds
         score_thresh = pre_priority.mean() * 0.4
         keep_mask = (pre_priority > score_thresh)
-
         self.nodes = self.nodes[keep_mask]
         self.node_labels = self.node_labels[keep_mask]
         self.node_freq = self.node_freq[keep_mask]
         self.node_strength = self.node_strength[keep_mask]
         self.node_consistency = self.node_consistency[keep_mask]
         self.node_fidelity = self.node_fidelity[keep_mask]
+        self._cap_nodes_per_class(node_priority=pre_priority[keep_mask])
 
-        post_priority = pre_priority[keep_mask]
-        self._cap_nodes_per_class(node_priority=post_priority)
-
-        # Update manifold subspaces after pruning
+        # Update manifold subspaces
         rank = getattr(Config, "BIO_SUBSPACE_RANK", 10)
         self._update_class_subspaces(k=rank)
 
-        # STEP 3.7: Equiangular Tight Frame (ETF) Anchoring
         if getattr(Config, "BIO_USE_ETF", False):
             self._apply_etf_anchoring()
 
-        # RESET activation histories for next task
+        # RESET activation histories
         self.node_freq = torch.zeros(len(self.nodes), device=self.device)
         self.node_strength = torch.zeros(len(self.nodes), device=self.device)
         self.node_consistency = torch.zeros(len(self.nodes), device=self.device)
         self.node_fidelity = torch.zeros(len(self.nodes), device=self.device)
 
-        # STEP 5: MANIFOLD-ANCHORED RLA
-        # Finally, we use our high-fidelity nodes to re-calculate the optimal 
-        # projection P. This ensures System 2's alignment engine is perfectly 
-        # calibrated to the episodic memory (System 1).
-        mode = getattr(Config, "BIO_CONSOLIDATION_MODE", "sgd")
+        # STEP 8: MANIFOLD-ANCHORED RLA
+        # Final recalibration using the stable, pruned nodes.
         if mode == "analytic_etf":
             self._rebuild_rla_from_nodes()
 
-        # REFRESH performance cache (Projected Node Bank)
-        # This ensures System 1 inference is extremely fast.
+        # REFRESH performance cache
         with torch.no_grad():
             if mode == "nc_align":
                 self.node_bank_aligned = self.align_layer(self.nodes)
