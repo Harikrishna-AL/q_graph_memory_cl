@@ -82,15 +82,20 @@ def build_jobs(args: argparse.Namespace) -> list[Job]:
                     dataset,
                     "--backbone",
                     backbone,
+                    "--consolidation_mode",
+                    args.story_consolidation_mode,
                     "--stages",
                     *stages,
                 ]
+                if args.story_use_etf:
+                    command.append("--use_etf")
                 if args.raw_vector_budget_mb is not None:
                     command.extend(["--raw-vector-budget-mb", str(args.raw_vector_budget_mb)])
                 if args.extra_story_args:
                     command.extend(shlex.split(args.extra_story_args))
 
-                stem = f"story_{dataset_key}_{backbone_key}"
+                etf_key = "etf" if args.story_use_etf else "no_etf"
+                stem = f"story_{dataset_key}_{backbone_key}_{safe_name(args.story_consolidation_mode)}_{etf_key}"
                 jobs.append(
                     Job(
                         run_type="story",
@@ -185,6 +190,12 @@ def main() -> int:
     parser.add_argument("--backbones", default="all", help="comma list or 'all'")
     parser.add_argument("--run-types", default="all", help="story,ablations or 'all'")
     parser.add_argument("--story-stages", default="all", help="comma list of run_paper_story stages or 'all'")
+    parser.add_argument("--story-consolidation-mode", default="analytic_etf",
+                        help="consolidation mode passed to run_paper_story.py; default matches run_ablations.py")
+    parser.add_argument("--story-use-etf", dest="story_use_etf", action="store_true", default=True,
+                        help="pass --use_etf to run_paper_story.py; enabled by default to match run_ablations.py")
+    parser.add_argument("--no-story-use-etf", dest="story_use_etf", action="store_false",
+                        help="do not pass --use_etf to run_paper_story.py")
     parser.add_argument("--raw-vector-budget-mb", type=float, default=None,
                         help="optional fixed MB budget passed to run_paper_story stage 2c")
     parser.add_argument("--results-dir", default="results/grid", help="root directory for grid logs and markers")
