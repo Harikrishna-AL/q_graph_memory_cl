@@ -29,7 +29,7 @@ from pathlib import Path
 PAPER_DATASETS = ["tinyimagenet", "imagenet-r", "objectnet"]
 PAPER_BACKBONES = ["resnet50", "dinov3", "siglip2"]
 
-STORY_STAGES = ["0", "1", "2", "2b", "2c", "3", "4", "5", "5b"]
+STORY_STAGES = ["1", "2", "2b", "2c", "3", "4", "5", "5b"]
 RUN_TYPES = ["story", "ablations"]
 
 
