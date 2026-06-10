@@ -8,3 +8,6 @@ __pycache__/
 
 *.svg
 svg3d*.py
+
+tmlr_claim_calibration.md
+tmlr_draft.pdf
