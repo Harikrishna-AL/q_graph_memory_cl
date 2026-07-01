@@ -11,3 +11,8 @@ svg3d*.py
 
 tmlr_claim_calibration.md
 tmlr_draft.pdf
+
+results/
+extract_* 
+paper_sections.md
+summarize_results.py
