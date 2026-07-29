@@ -22,8 +22,12 @@ os.chdir(ROOT)
 SWEEP = pathlib.Path("results/sweep")
 OUT = pathlib.Path("results/parsed")
 
-STEP_FULL = "Full MAYA (beta=0.6)"
-STEP_GLOBAL = "+Analytic ETF (beta=0, global only)"
+# run_ablations.py writes these exact labels into the JSON. Matched by prefix
+# so the parser tolerates the alternative naming used in parse_grid_logs.py.
+STEP_NCM = "Standard NCM"
+STEP_GLOBAL = "+Analytic ETF"
+STEP_EPISODIC = "+alpha=1"
+STEP_FULL = "Full MAYA"
 
 
 def check_targets():
@@ -100,10 +104,30 @@ def fmt(m, s, n):
 
 
 def component(rec, step):
-    for x in rec["component_ablation"] if "component_ablation" in rec else rec.get("component", []):
-        if x["step"] == step:
-            return x["aia"] * (100 if x["aia"] <= 1.0 else 1)
+    """AIA in percent for a component-ablation row, matched by label prefix."""
+    rows = rec.get("component_ablation") or rec.get("component") or []
+    for x in rows:
+        if x["step"].startswith(step):
+            a = x["aia"]
+            return a * 100 if a <= 1.0 else a
     return None
+
+
+def baseline_p256():
+    """The existing p=256 results, for comparison against the corrected frame."""
+    f = OUT / "all_results.json"
+    if not f.exists():
+        return {}
+    with open(f) as fh:
+        parsed = json.load(fh)
+    out = {}
+    for key, rec in parsed.items():
+        comp = {x["step"]: x["aia"] for x in rec["ablation"]["component"]}
+        out[key] = {
+            "global": next((v for k, v in comp.items() if k.startswith("+Analytic ETF")), None),
+            "full": next((v for k, v in comp.items() if k.startswith("Full MAYA")), None),
+        }
+    return out
 
 
 def main():
@@ -120,6 +144,29 @@ def main():
         return
 
     groups = load_sweep()
+    base = baseline_p256()
+
+    # ── Everything that has landed, with the p=256 delta ────────────────
+    n_files = sum(len(v) for v in groups.values())
+    print("=" * 78)
+    print(f"LANDED: {n_files} run(s)")
+    print("=" * 78)
+    print(f"{'config':22} {'geom':>7} {'p':>5} {'seed':>5} "
+          f"{'global':>7} {'episod':>7} {'full':>7}  {'vs p=256 full':>13}  {'K=1':>6}")
+    print("-" * 78)
+    for key in sorted(groups):
+        ds, bb, geom, dim = key
+        for seed, rec in sorted(groups[key].items()):
+            g = component(rec, STEP_GLOBAL)
+            e = component(rec, STEP_EPISODIC)
+            f = component(rec, STEP_FULL)
+            k1 = rec.get("k_sweep", [{}])[0].get("aia")
+            k1 = k1 * 100 if k1 is not None and k1 <= 1.0 else k1
+            b = base.get(f"{ds}/{bb}", {}).get("full")
+            d = f"{f - b:+6.1f}" if (b is not None and f is not None and geom == "etf") else "     --"
+            print(f"{ds+'/'+bb:22} {geom:>7} {str(dim):>5} {seed:>5} "
+                  f"{g:7.2f} {e:7.2f} {f:7.2f}  {d:>13}  {k1:6.1f}")
+    print()
 
     # ── Item 2: target geometry, at matched dimension ─────────────────────
     geoms = sorted({k[2] for k in groups})

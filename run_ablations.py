@@ -194,7 +194,9 @@ def main():
         aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem, "forgetting": forge})
 
-    tag = f"_{args.target_geometry}" if args.target_geometry != "etf" else ""
+    # Geometry is ALWAYS in the name. Omitting it for the default made the
+    # etf filename a prefix-collision with the other arms' skip checks.
+    tag = f"_{args.target_geometry}"
     tag += f"_p{Config.BIO_ALIGN_DIM}" if args.align_dim is not None else ""
     os.makedirs("results/sweep", exist_ok=True)
     out_path = f"results/sweep/ablation_{args.dataset}_{args.backbone}{tag}_seed{args.seed}.json"

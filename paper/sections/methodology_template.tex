@@ -21,7 +21,7 @@ Rather than relying on iterative gradient descent to slowly mold the feature spa
 \begin{equation}
     W^* = \arg\min_W \| X W - Y_{ETF} \|_F^2 + \lambda \|W\|_F^2
 \end{equation}
-Because data arrives in a stream, re-solving this objective over all data seen so far is not possible: past features are not retained. Instead, MAYA accumulates the two sufficient statistics the normal equations require --- the uncentred second-moment matrix $\Sigma \gets \Sigma + H^\top H$ and the cross-correlation $\Phi \gets \Phi + H^\top Y_{ETF}$ --- and recovers the projection by solving the regularized system $(\Sigma + \lambda I) W^* = \Phi$ at each consolidation step. Both accumulators are additive, so the solution obtained at any point is exactly the solution the batch objective would give over all data observed to that point, independently of the order in which classes arrived. Old classes therefore cannot be degraded by the arrival of new ones, which is the sense in which the update is stable: no iterative optimization is performed and there is no gradient drift.
+Because data arrives in a stream, re-solving this objective over all data seen so far is not possible: past features are not retained. Instead, MAYA accumulates the two sufficient statistics the normal equations require --- the uncentred second-moment matrix $\Sigma \gets \Sigma + H^\top H$ and the cross-correlation $\Phi \gets \Phi + H^\top Y_{ETF}$ --- and recovers the projection by solving the ridge-regularized system $(\Sigma + \gamma I) W^* = \Phi$ at each consolidation step, with $\gamma = 10^{-3}$. Both accumulators are additive, so the solution obtained at any point is exactly the solution the batch objective would give over all data observed to that point, independently of the order in which classes arrived. Old classes therefore cannot be degraded by the arrival of new ones, which is the sense in which the update is stable: no iterative optimization is performed and there is no gradient drift.
 
 We note that the cost of this step is a $D \times D$ solve per consolidation rather than a rank-one update. The Sherman-Morrison-Woodbury identity would permit incremental inversion, and is what related analytic methods use; our implementation solves the system directly, which is simpler and, at our consolidation frequency, not the bottleneck. The resulting $W^*$ is identical either way.
 
@@ -53,7 +53,7 @@ The two mechanisms are complementary. The global ETF projection separates the br
 
 \STATE \textbf{Initialization:}
 \STATE Generate fixed Equiangular Tight Frame $M \in \mathbb{R}^{p \times C}$
-\STATE $\Sigma \gets \lambda I_{D \times D}$, \quad $\Phi \gets \mathbf{0}_{D \times p}$, \quad $\mathcal{G} \gets \emptyset$, \quad $\mathcal{B} \gets \emptyset$
+\STATE $\Sigma \gets \mathbf{0}_{D \times D}$, \quad $\Phi \gets \mathbf{0}_{D \times p}$, \quad $\mathcal{G} \gets \emptyset$, \quad $\mathcal{B} \gets \emptyset$
 \STATE
 
 \FOR{each incoming batch $(X, Y)$ in the stream}
@@ -66,7 +66,7 @@ The two mechanisms are complementary. The global ETF projection separates the br
     \STATE
     \IF{end of block}
         \STATE \textit{\% 3. Consolidation}
-        \STATE Solve $\Sigma\, W^* = \Phi$ \COMMENT{$\Sigma$ carries the $\lambda I$ initialisation}
+        \STATE Solve $(\Sigma + \gamma I)\, W^* = \Phi$ \COMMENT{ridge $\gamma = 10^{-3}$}
         \STATE Project the buffer: $Z \gets \mathrm{normalize}(\mathcal{B}_H \, W^*)$
         \FOR{each class $c$ present in $\mathcal{B}$}
             \STATE Cluster $Z_c$ into $k = \min(k_{\max}, N_c)$ groups by $k$-means \COMMENT{in aligned space}

@@ -30,8 +30,8 @@ run_geometry () {
     for bb in "${BACKBONES[@]}"; do
       for geom in etf onehot random; do
         tag="${ds}_${bb}_${geom}_p${ALIGN_DIM}"
-        if [ -f "results/sweep/ablation_${ds}_${bb}_${geom}_p${ALIGN_DIM}_seed42.json" ] \
-           || [ -f "results/sweep/ablation_${ds}_${bb}_p${ALIGN_DIM}_seed42.json" ]; then
+        out="results/sweep/ablation_${tag}_seed42.json"
+        if [ -f "$out" ]; then
           echo "  skip  ${tag} (already done)"; continue
         fi
         echo "  run   ${tag}"
