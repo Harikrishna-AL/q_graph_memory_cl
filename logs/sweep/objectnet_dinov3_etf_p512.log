@@ -1,0 +1,946 @@
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🚀 [1/3] Component Ablation Table...
+
+📏 Running Standalone NCM Baseline (Stage 1 Logic)...
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 2: 86.42% | Breakdown: ['88.3%', '84.5%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 3: 83.23% | Breakdown: ['86.2%', '79.7%', '83.8%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 4: 82.06% | Breakdown: ['83.6%', '77.8%', '82.7%', '84.1%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 5: 82.96% | Breakdown: ['83.3%', '76.8%', '83.2%', '83.5%', '87.9%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 6: 82.38% | Breakdown: ['83.6%', '74.3%', '81.6%', '82.5%', '88.6%', '83.8%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 7: 81.74% | Breakdown: ['82.8%', '74.3%', '80.7%', '79.9%', '87.1%', '83.9%', '83.6%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 8: 81.37% | Breakdown: ['82.8%', '73.4%', '80.3%', '79.5%', '85.4%', '83.6%', '82.7%', '83.3%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 9: 79.90% | Breakdown: ['82.1%', '72.4%', '80.1%', '77.8%', '82.9%', '83.5%', '81.1%', '81.1%', '78.1%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 10: 78.93% | Breakdown: ['82.4%', '71.1%', '80.3%', '76.4%', '82.2%', '83.5%', '81.8%', '79.8%', '75.8%', '75.9%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 11: 78.58% | Breakdown: ['82.1%', '71.8%', '79.8%', '76.7%', '81.0%', '83.2%', '81.1%', '79.8%', '75.0%', '74.6%', '79.3%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 12: 77.30% | Breakdown: ['82.1%', '70.9%', '79.4%', '76.0%', '80.0%', '82.0%', '80.9%', '77.8%', '73.7%', '75.2%', '77.8%', '71.7%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 13: 76.56% | Breakdown: ['81.7%', '69.6%', '79.0%', '74.9%', '79.0%', '80.8%', '80.2%', '78.1%', '73.5%', '75.9%', '78.1%', '69.2%', '75.0%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 14: 76.25% | Breakdown: ['81.7%', '69.1%', '79.0%', '74.2%', '79.3%', '80.4%', '80.1%', '77.6%', '72.5%', '74.6%', '78.0%', '68.4%', '73.9%', '78.8%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 15: 75.45% | Breakdown: ['81.2%', '68.5%', '78.3%', '74.2%', '79.0%', '76.0%', '79.9%', '77.0%', '72.3%', '72.8%', '77.8%', '67.5%', '73.4%', '77.7%', '76.2%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 566.09 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 75.45% | Forgetting: 6.49%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 2: 86.48% | Breakdown: ['88.3%', '84.6%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 3: 83.27% | Breakdown: ['86.1%', '79.7%', '84.0%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 4: 82.48% | Breakdown: ['83.8%', '77.8%', '83.4%', '84.9%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 5: 83.37% | Breakdown: ['83.7%', '77.6%', '83.6%', '83.5%', '88.4%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 6: 82.66% | Breakdown: ['83.8%', '75.0%', '82.0%', '83.1%', '88.2%', '83.8%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 7: 82.25% | Breakdown: ['83.6%', '75.3%', '81.3%', '80.4%', '86.6%', '84.2%', '84.4%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 8: 81.76% | Breakdown: ['83.4%', '74.0%', '80.8%', '79.5%', '85.7%', '83.9%', '83.0%', '83.6%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 9: 80.48% | Breakdown: ['82.8%', '73.0%', '80.4%', '78.5%', '83.5%', '84.1%', '82.2%', '81.8%', '78.0%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 10: 79.51% | Breakdown: ['83.0%', '71.9%', '81.1%', '77.3%', '82.7%', '84.2%', '81.8%', '79.6%', '76.7%', '76.7%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 11: 78.93% | Breakdown: ['82.4%', '71.4%', '80.1%', '77.0%', '81.0%', '83.3%', '81.6%', '80.6%', '75.0%', '75.4%', '80.4%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 12: 77.88% | Breakdown: ['82.8%', '71.9%', '80.1%', '76.3%', '80.0%', '82.0%', '80.1%', '79.6%', '74.8%', '75.6%', '78.3%', '73.2%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 13: 77.33% | Breakdown: ['82.4%', '70.2%', '79.8%', '76.7%', '79.5%', '81.7%', '80.6%', '78.1%', '75.0%', '75.7%', '78.8%', '71.2%', '75.4%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 14: 77.11% | Breakdown: ['82.0%', '69.7%', '79.9%', '75.8%', '79.5%', '81.0%', '80.6%', '78.1%', '74.4%', '74.9%', '77.8%', '71.0%', '75.6%', '79.2%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 15: 76.38% | Breakdown: ['81.3%', '68.9%', '78.9%', '75.8%', '79.8%', '77.3%', '80.1%', '78.0%', '73.5%', '73.0%', '77.6%', '71.0%', '75.1%', '77.9%', '77.5%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 566.09 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 76.38% | Forgetting: 6.05%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 96.3%)
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.0%)
+   -> AIA after Task 2: 86.42% | Breakdown: ['88.3%', '84.5%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 85.9%)
+   -> AIA after Task 3: 83.23% | Breakdown: ['86.1%', '79.7%', '83.9%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 84.3%)
+   -> AIA after Task 4: 82.48% | Breakdown: ['83.8%', '77.8%', '83.4%', '84.9%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 82.7%)
+   -> AIA after Task 5: 82.96% | Breakdown: ['83.3%', '76.8%', '83.2%', '83.5%', '87.9%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 82.0%)
+   -> AIA after Task 6: 82.66% | Breakdown: ['83.8%', '75.0%', '82.0%', '83.1%', '88.2%', '83.8%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 81.9%)
+   -> AIA after Task 7: 82.30% | Breakdown: ['83.7%', '75.0%', '81.5%', '80.2%', '86.7%', '84.2%', '84.8%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 81.8%)
+   -> AIA after Task 8: 81.66% | Breakdown: ['83.0%', '73.9%', '81.2%', '79.2%', '85.5%', '83.9%', '82.9%', '83.6%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 79.2%)
+   -> AIA after Task 9: 80.43% | Breakdown: ['82.6%', '72.9%', '80.4%', '78.5%', '83.7%', '84.1%', '82.0%', '81.6%', '78.0%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 78.6%)
+   -> AIA after Task 10: 79.51% | Breakdown: ['83.0%', '71.9%', '81.1%', '77.3%', '82.7%', '84.2%', '81.8%', '79.6%', '76.7%', '76.7%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 77.6%)
+   -> AIA after Task 11: 79.04% | Breakdown: ['82.6%', '71.5%', '80.1%', '77.0%', '81.3%', '83.3%', '82.2%', '80.8%', '75.3%', '75.2%', '80.0%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 76.9%)
+   -> AIA after Task 12: 77.84% | Breakdown: ['82.8%', '71.8%', '79.8%', '76.3%', '80.3%', '82.5%', '80.2%', '79.3%', '74.6%', '75.7%', '78.3%', '72.5%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 75.7%)
+   -> AIA after Task 13: 77.18% | Breakdown: ['82.3%', '70.2%', '79.2%', '76.1%', '79.7%', '81.7%', '81.1%', '78.5%', '74.6%', '75.9%', '78.6%', '70.4%', '75.1%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 75.7%)
+   -> AIA after Task 14: 77.02% | Breakdown: ['82.0%', '69.6%', '79.8%', '75.2%', '79.5%', '81.0%', '80.2%', '78.1%', '74.1%', '74.9%', '78.3%', '70.9%', '75.4%', '79.2%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 75.0%)
+   -> AIA after Task 15: 76.38% | Breakdown: ['81.3%', '68.9%', '78.9%', '75.8%', '79.8%', '77.3%', '80.1%', '78.0%', '73.5%', '73.0%', '77.6%', '71.0%', '75.1%', '77.9%', '77.5%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 566.09 MB
+   ✅ Selected alpha: 0.50 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.38% | Forgetting: 5.96%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+
+🚀 [2/3] Lambda Sweep...
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 96.3%)
+   -> AIA after Task 1: 95.63% | Breakdown: ['95.6%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 87.7%)
+   -> AIA after Task 2: 86.22% | Breakdown: ['88.2%', '84.2%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 87.2%)
+   -> AIA after Task 3: 83.60% | Breakdown: ['85.3%', '79.9%', '85.5%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 83.7%)
+   -> AIA after Task 4: 82.66% | Breakdown: ['84.6%', '77.4%', '84.3%', '84.3%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 82.9%)
+   -> AIA after Task 5: 82.39% | Breakdown: ['83.0%', '75.3%', '82.9%', '83.7%', '87.1%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 83.0%)
+   -> AIA after Task 6: 81.70% | Breakdown: ['83.0%', '73.1%', '81.7%', '81.6%', '86.2%', '84.5%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 82.0%)
+   -> AIA after Task 7: 81.94% | Breakdown: ['82.8%', '73.8%', '81.8%', '80.2%', '84.9%', '84.1%', '86.0%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 82.0%)
+   -> AIA after Task 8: 81.51% | Breakdown: ['83.3%', '73.1%', '81.2%', '80.1%', '83.0%', '84.1%', '84.4%', '82.8%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 79.9%)
+   -> AIA after Task 9: 80.13% | Breakdown: ['82.3%', '71.1%', '80.7%', '78.9%', '82.2%', '83.0%', '82.9%', '80.8%', '79.4%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 79.1%)
+   -> AIA after Task 10: 79.51% | Breakdown: ['82.9%', '71.4%', '80.8%', '78.4%', '80.5%', '82.7%', '83.2%', '79.0%', '78.3%', '77.8%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 78.5%)
+   -> AIA after Task 11: 79.01% | Breakdown: ['82.0%', '70.9%', '80.3%', '77.8%', '79.5%', '82.2%', '82.3%', '80.1%', '76.5%', '76.5%', '80.9%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 77.8%)
+   -> AIA after Task 12: 78.14% | Breakdown: ['81.9%', '71.4%', '80.3%', '77.6%', '78.7%', '82.0%', '81.1%', '78.0%', '76.9%', '76.0%', '79.2%', '74.7%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 76.8%)
+   -> AIA after Task 13: 77.40% | Breakdown: ['81.3%', '70.4%', '79.9%', '76.1%', '77.6%', '80.7%', '81.6%', '78.1%', '75.8%', '77.3%', '78.5%', '71.7%', '77.0%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 75.7%)
+   -> AIA after Task 14: 77.08% | Breakdown: ['81.7%', '70.2%', '80.2%', '76.1%', '78.2%', '80.8%', '81.5%', '76.6%', '74.1%', '75.6%', '78.6%', '70.5%', '75.0%', '80.0%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 75.4%)
+   -> AIA after Task 15: 76.22% | Breakdown: ['80.7%', '68.0%', '79.8%', '74.5%', '78.3%', '77.8%', '81.8%', '76.5%', '73.4%', '73.2%', '79.2%', '69.7%', '75.0%', '79.2%', '76.5%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 565.99 MB
+   ✅ Selected alpha: 0.50 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.22% | Forgetting: 6.64%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 96.3%)
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.0%)
+   -> AIA after Task 2: 86.42% | Breakdown: ['88.3%', '84.5%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 85.9%)
+   -> AIA after Task 3: 83.23% | Breakdown: ['86.1%', '79.7%', '83.9%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 84.3%)
+   -> AIA after Task 4: 82.48% | Breakdown: ['83.8%', '77.8%', '83.4%', '84.9%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 82.7%)
+   -> AIA after Task 5: 82.96% | Breakdown: ['83.3%', '76.8%', '83.2%', '83.5%', '87.9%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 82.0%)
+   -> AIA after Task 6: 82.66% | Breakdown: ['83.8%', '75.0%', '82.0%', '83.1%', '88.2%', '83.8%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 81.9%)
+   -> AIA after Task 7: 82.30% | Breakdown: ['83.7%', '75.0%', '81.5%', '80.2%', '86.7%', '84.2%', '84.8%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 81.8%)
+   -> AIA after Task 8: 81.66% | Breakdown: ['83.0%', '73.9%', '81.2%', '79.2%', '85.5%', '83.9%', '82.9%', '83.6%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 79.2%)
+   -> AIA after Task 9: 80.43% | Breakdown: ['82.6%', '72.9%', '80.4%', '78.5%', '83.7%', '84.1%', '82.0%', '81.6%', '78.0%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 78.6%)
+   -> AIA after Task 10: 79.51% | Breakdown: ['83.0%', '71.9%', '81.1%', '77.3%', '82.7%', '84.2%', '81.8%', '79.6%', '76.7%', '76.7%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 77.6%)
+   -> AIA after Task 11: 79.04% | Breakdown: ['82.6%', '71.5%', '80.1%', '77.0%', '81.3%', '83.3%', '82.2%', '80.8%', '75.3%', '75.2%', '80.0%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 76.9%)
+   -> AIA after Task 12: 77.84% | Breakdown: ['82.8%', '71.8%', '79.8%', '76.3%', '80.3%', '82.5%', '80.2%', '79.3%', '74.6%', '75.7%', '78.3%', '72.5%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 75.7%)
+   -> AIA after Task 13: 77.18% | Breakdown: ['82.3%', '70.2%', '79.2%', '76.1%', '79.7%', '81.7%', '81.1%', '78.5%', '74.6%', '75.9%', '78.6%', '70.4%', '75.1%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 75.7%)
+   -> AIA after Task 14: 77.02% | Breakdown: ['82.0%', '69.6%', '79.8%', '75.2%', '79.5%', '81.0%', '80.2%', '78.1%', '74.1%', '74.9%', '78.3%', '70.9%', '75.4%', '79.2%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 75.0%)
+   -> AIA after Task 15: 76.38% | Breakdown: ['81.3%', '68.9%', '78.9%', '75.8%', '79.8%', '77.3%', '80.1%', '78.0%', '73.5%', '73.0%', '77.6%', '71.0%', '75.1%', '77.9%', '77.5%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 566.09 MB
+   ✅ Selected alpha: 0.50 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.38% | Forgetting: 5.96%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 96.0%)
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 87.4%)
+   -> AIA after Task 2: 86.16% | Breakdown: ['88.3%', '84.0%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 87.2%)
+   -> AIA after Task 3: 83.73% | Breakdown: ['85.8%', '80.2%', '85.2%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 84.2%)
+   -> AIA after Task 4: 82.28% | Breakdown: ['84.4%', '77.4%', '83.5%', '83.8%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 83.1%)
+   -> AIA after Task 5: 82.75% | Breakdown: ['83.2%', '76.5%', '83.4%', '82.9%', '87.7%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 82.6%)
+   -> AIA after Task 6: 82.23% | Breakdown: ['84.0%', '73.6%', '82.7%', '81.6%', '87.2%', '84.2%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 82.6%)
+   -> AIA after Task 7: 82.49% | Breakdown: ['83.8%', '74.0%', '82.6%', '81.1%', '85.2%', '84.6%', '86.0%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 81.9%)
+   -> AIA after Task 8: 81.74% | Breakdown: ['85.2%', '72.9%', '82.4%', '80.1%', '84.5%', '83.2%', '84.1%', '81.6%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 79.8%)
+   -> AIA after Task 9: 80.26% | Breakdown: ['84.2%', '71.8%', '80.3%', '78.9%', '81.8%', '83.2%', '83.7%', '80.1%', '78.3%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 78.2%)
+   -> AIA after Task 10: 78.90% | Breakdown: ['82.6%', '72.0%', '78.6%', '77.9%', '80.5%', '81.6%', '81.8%', '79.8%', '77.1%', '77.0%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 77.7%)
+   -> AIA after Task 11: 78.71% | Breakdown: ['82.0%', '72.4%', '79.5%', '77.6%', '79.8%', '82.0%', '82.0%', '80.0%', '75.3%', '75.1%', '80.0%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 77.4%)
+   -> AIA after Task 12: 78.10% | Breakdown: ['82.4%', '71.2%', '79.2%', '76.7%', '80.3%', '82.6%', '81.5%', '78.0%', '75.0%', '75.9%', '79.3%', '75.2%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 76.7%)
+   -> AIA after Task 13: 77.25% | Breakdown: ['81.2%', '69.4%', '79.4%', '76.1%', '79.3%', '81.6%', '80.8%', '77.8%', '74.4%', '76.4%', '78.8%', '71.9%', '77.2%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 76.2%)
+   -> AIA after Task 14: 77.43% | Breakdown: ['81.7%', '68.9%', '80.3%', '76.0%', '80.2%', '81.4%', '82.0%', '77.6%', '74.1%', '75.1%', '79.0%', '71.2%', '77.5%', '79.2%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 75.4%)
+   -> AIA after Task 15: 76.66% | Breakdown: ['80.9%', '68.3%', '78.4%', '75.7%', '80.2%', '79.2%', '82.5%', '77.1%', '73.9%', '73.2%', '78.5%', '70.9%', '76.5%', '78.2%', '76.3%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 565.90 MB
+   ✅ Selected alpha: 0.30 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.66% | Forgetting: 5.89%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+
+🚀 [3/3] Node Count Sweep (Fixed alpha=0.5)...
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 42.9%)
+   -> AIA after Task 1: 40.79% | Breakdown: ['40.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 33.1%)
+   -> AIA after Task 2: 30.86% | Breakdown: ['38.1%', '23.6%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 29.4%)
+   -> AIA after Task 3: 28.06% | Breakdown: ['40.3%', '23.1%', '20.8%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 27.4%)
+   -> AIA after Task 4: 25.48% | Breakdown: ['41.5%', '23.3%', '22.6%', '14.5%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 28.7%)
+   -> AIA after Task 5: 29.48% | Breakdown: ['41.7%', '22.1%', '23.3%', '14.8%', '45.5%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 27.1%)
+   -> AIA after Task 6: 27.81% | Breakdown: ['41.9%', '21.7%', '24.9%', '15.0%', '46.1%', '17.4%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 29.3%)
+   -> AIA after Task 7: 30.40% | Breakdown: ['41.9%', '21.7%', '24.4%', '15.3%', '42.9%', '17.3%', '49.5%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 33.0%)
+   -> AIA after Task 8: 34.51% | Breakdown: ['40.7%', '21.3%', '22.4%', '15.0%', '40.5%', '17.3%', '48.1%', '71.0%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 33.4%)
+   -> AIA after Task 9: 34.64% | Breakdown: ['41.1%', '20.6%', '22.9%', '14.7%', '41.2%', '17.7%', '48.1%', '68.4%', '37.2%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 33.9%)
+   -> AIA after Task 10: 35.37% | Breakdown: ['41.1%', '20.4%', '22.8%', '14.2%', '40.8%', '17.8%', '48.8%', '67.1%', '36.2%', '44.5%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 36.2%)
+   -> AIA after Task 11: 37.34% | Breakdown: ['40.7%', '20.4%', '22.6%', '14.5%', '39.2%', '18.0%', '47.4%', '66.6%', '36.5%', '44.9%', '60.1%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 37.4%)
+   -> AIA after Task 12: 38.38% | Breakdown: ['40.1%', '19.5%', '21.7%', '14.7%', '38.0%', '17.4%', '47.6%', '66.1%', '35.1%', '44.4%', '59.4%', '56.6%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 36.3%)
+   -> AIA after Task 13: 37.69% | Breakdown: ['39.9%', '17.9%', '22.3%', '14.5%', '38.3%', '16.8%', '46.7%', '65.9%', '36.3%', '44.9%', '59.0%', '56.1%', '31.3%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 37.4%)
+   -> AIA after Task 14: 38.90% | Breakdown: ['39.3%', '17.5%', '21.1%', '14.0%', '38.0%', '15.8%', '45.6%', '66.4%', '34.9%', '44.9%', '58.5%', '56.3%', '32.1%', '60.1%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 37.5%)
+   -> AIA after Task 15: 39.17% | Breakdown: ['36.8%', '17.4%', '21.9%', '13.3%', '38.0%', '15.8%', '46.5%', '65.4%', '35.1%', '44.5%', '58.2%', '55.5%', '30.4%', '59.8%', '49.0%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 186.44 MB
+   ✅ Selected alpha: 0.00 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 39.17% | Forgetting: 3.04%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 90.4%)
+   -> AIA after Task 1: 93.51% | Breakdown: ['93.5%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 84.3%)
+   -> AIA after Task 2: 84.38% | Breakdown: ['87.7%', '81.1%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 84.4%)
+   -> AIA after Task 3: 82.16% | Breakdown: ['85.7%', '79.2%', '81.6%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 81.9%)
+   -> AIA after Task 4: 80.34% | Breakdown: ['84.4%', '76.4%', '80.8%', '79.8%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 81.1%)
+   -> AIA after Task 5: 80.44% | Breakdown: ['82.8%', '73.8%', '79.2%', '79.6%', '86.9%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 79.5%)
+   -> AIA after Task 6: 80.03% | Breakdown: ['82.9%', '70.2%', '79.9%', '78.7%', '86.4%', '82.0%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 78.2%)
+   -> AIA after Task 7: 79.52% | Breakdown: ['82.1%', '70.9%', '78.9%', '76.0%', '84.7%', '81.0%', '83.0%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 77.3%)
+   -> AIA after Task 8: 78.55% | Breakdown: ['82.1%', '68.7%', '77.0%', '74.5%', '82.9%', '80.7%', '80.4%', '82.1%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 75.6%)
+   -> AIA after Task 9: 76.65% | Breakdown: ['80.5%', '66.7%', '76.2%', '72.1%', '81.5%', '79.5%', '79.7%', '79.5%', '74.1%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 73.8%)
+   -> AIA after Task 10: 75.28% | Breakdown: ['80.9%', '64.9%', '74.8%', '72.1%', '79.8%', '78.9%', '78.5%', '79.1%', '72.0%', '71.7%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 73.0%)
+   -> AIA after Task 11: 74.33% | Breakdown: ['76.8%', '63.7%', '73.3%', '71.6%', '79.3%', '78.1%', '77.3%', '78.1%', '70.5%', '70.4%', '78.5%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 72.3%)
+   -> AIA after Task 12: 73.21% | Breakdown: ['77.6%', '63.8%', '72.9%', '70.8%', '77.0%', '77.0%', '75.9%', '75.3%', '71.3%', '69.9%', '75.3%', '71.7%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 70.9%)
+   -> AIA after Task 13: 72.11% | Breakdown: ['75.9%', '61.9%', '73.4%', '69.6%', '76.3%', '75.0%', '76.6%', '75.6%', '70.4%', '69.5%', '74.7%', '68.7%', '69.9%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 70.8%)
+   -> AIA after Task 14: 71.94% | Breakdown: ['75.8%', '61.9%', '73.4%', '69.3%', '76.3%', '75.4%', '76.4%', '74.3%', '69.1%', '68.2%', '74.8%', '68.0%', '69.6%', '74.5%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 70.5%)
+   -> AIA after Task 15: 71.59% | Breakdown: ['76.2%', '60.4%', '72.4%', '69.5%', '76.5%', '73.0%', '77.1%', '74.8%', '68.4%', '68.5%', '74.8%', '68.5%', '69.4%', '73.0%', '71.3%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 362.02 MB
+   ✅ Selected alpha: 0.30 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 71.59% | Forgetting: 7.70%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 94.4%)
+   -> AIA after Task 1: 94.97% | Breakdown: ['95.0%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 87.5%)
+   -> AIA after Task 2: 86.94% | Breakdown: ['89.0%', '84.9%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.1%)
+   -> AIA after Task 3: 84.04% | Breakdown: ['86.4%', '80.2%', '85.5%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 83.3%)
+   -> AIA after Task 4: 82.48% | Breakdown: ['84.8%', '78.3%', '83.0%', '83.8%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 82.4%)
+   -> AIA after Task 5: 82.44% | Breakdown: ['83.4%', '76.7%', '82.2%', '82.8%', '87.1%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 81.9%)
+   -> AIA after Task 6: 82.53% | Breakdown: ['83.4%', '75.3%', '82.4%', '81.9%', '87.9%', '84.4%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 81.6%)
+   -> AIA after Task 7: 82.57% | Breakdown: ['84.1%', '74.9%', '82.5%', '80.7%', '86.4%', '83.8%', '85.7%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 81.4%)
+   -> AIA after Task 8: 81.75% | Breakdown: ['83.7%', '72.9%', '82.0%', '80.4%', '84.0%', '83.9%', '85.1%', '82.0%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 79.0%)
+   -> AIA after Task 9: 80.50% | Breakdown: ['83.4%', '72.9%', '81.1%', '77.9%', '82.5%', '83.2%', '83.0%', '80.5%', '79.9%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 78.3%)
+   -> AIA after Task 10: 79.89% | Breakdown: ['83.8%', '72.5%', '80.9%', '78.2%', '80.8%', '83.2%', '82.7%', '79.6%', '78.7%', '78.3%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 77.8%)
+   -> AIA after Task 11: 79.21% | Breakdown: ['82.8%', '72.3%', '79.5%', '77.5%', '80.3%', '82.5%', '82.3%', '79.5%', '76.7%', '77.2%', '80.7%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 77.3%)
+   -> AIA after Task 12: 78.45% | Breakdown: ['82.6%', '71.9%', '80.7%', '77.2%', '79.7%', '82.5%', '82.2%', '77.8%', '75.8%', '76.7%', '80.0%', '74.3%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 76.4%)
+   -> AIA after Task 13: 77.57% | Breakdown: ['81.6%', '70.7%', '80.2%', '77.0%', '79.2%', '81.3%', '81.1%', '78.5%', '75.0%', '76.7%', '80.2%', '71.2%', '75.7%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 76.1%)
+   -> AIA after Task 14: 77.29% | Breakdown: ['81.7%', '69.4%', '79.5%', '76.6%', '79.0%', '81.0%', '80.9%', '77.1%', '74.6%', '75.2%', '80.2%', '71.7%', '75.4%', '79.6%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 75.7%)
+   -> AIA after Task 15: 76.71% | Breakdown: ['80.7%', '68.6%', '79.3%', '76.4%', '78.3%', '79.2%', '80.6%', '76.6%', '75.5%', '73.5%', '79.7%', '71.0%', '75.6%', '78.5%', '77.1%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 553.55 MB
+   ✅ Selected alpha: 0.00 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.71% | Forgetting: 6.02%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+🔄 Preparing Dataset: OBJECTNET...
+   📐 Preprocessing: 224px, norm=custom
+✅ ObjectNet found at ./data/objectnet/objectnet-1.0
+ℹ️  Note: ObjectNet handled as 15 tasks of 20 classes. Split handled in main.py.
+✅ Loaded 50273 images. Classes expected: 300
+💾 Loading cached dinov3 features for objectnet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 34855 | Val samples: 3865
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 96.3%)
+   -> AIA after Task 1: 95.76% | Breakdown: ['95.8%']
+
+   📚 Training Task 2/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.0%)
+   -> AIA after Task 2: 86.42% | Breakdown: ['88.3%', '84.5%']
+
+   📚 Training Task 3/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 85.9%)
+   -> AIA after Task 3: 83.23% | Breakdown: ['86.1%', '79.7%', '83.9%']
+
+   📚 Training Task 4/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 84.3%)
+   -> AIA after Task 4: 82.48% | Breakdown: ['83.8%', '77.8%', '83.4%', '84.9%']
+
+   📚 Training Task 5/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 82.7%)
+   -> AIA after Task 5: 82.96% | Breakdown: ['83.3%', '76.8%', '83.2%', '83.5%', '87.9%']
+
+   📚 Training Task 6/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 82.0%)
+   -> AIA after Task 6: 82.66% | Breakdown: ['83.8%', '75.0%', '82.0%', '83.1%', '88.2%', '83.8%']
+
+   📚 Training Task 7/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 81.9%)
+   -> AIA after Task 7: 82.30% | Breakdown: ['83.7%', '75.0%', '81.5%', '80.2%', '86.7%', '84.2%', '84.8%']
+
+   📚 Training Task 8/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 81.8%)
+   -> AIA after Task 8: 81.66% | Breakdown: ['83.0%', '73.9%', '81.2%', '79.2%', '85.5%', '83.9%', '82.9%', '83.6%']
+
+   📚 Training Task 9/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 79.2%)
+   -> AIA after Task 9: 80.43% | Breakdown: ['82.6%', '72.9%', '80.4%', '78.5%', '83.7%', '84.1%', '82.0%', '81.6%', '78.0%']
+
+   📚 Training Task 10/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 78.6%)
+   -> AIA after Task 10: 79.51% | Breakdown: ['83.0%', '71.9%', '81.1%', '77.3%', '82.7%', '84.2%', '81.8%', '79.6%', '76.7%', '76.7%']
+
+   📚 Training Task 11/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 77.6%)
+   -> AIA after Task 11: 79.04% | Breakdown: ['82.6%', '71.5%', '80.1%', '77.0%', '81.3%', '83.3%', '82.2%', '80.8%', '75.3%', '75.2%', '80.0%']
+
+   📚 Training Task 12/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 76.9%)
+   -> AIA after Task 12: 77.84% | Breakdown: ['82.8%', '71.8%', '79.8%', '76.3%', '80.3%', '82.5%', '80.2%', '79.3%', '74.6%', '75.7%', '78.3%', '72.5%']
+
+   📚 Training Task 13/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 75.7%)
+   -> AIA after Task 13: 77.18% | Breakdown: ['82.3%', '70.2%', '79.2%', '76.1%', '79.7%', '81.7%', '81.1%', '78.5%', '74.6%', '75.9%', '78.6%', '70.4%', '75.1%']
+
+   📚 Training Task 14/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 75.7%)
+   -> AIA after Task 14: 77.02% | Breakdown: ['82.0%', '69.6%', '79.8%', '75.2%', '79.5%', '81.0%', '80.2%', '78.1%', '74.1%', '74.9%', '78.3%', '70.9%', '75.4%', '79.2%']
+
+   📚 Training Task 15/15
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 75.0%)
+   -> AIA after Task 15: 76.38% | Breakdown: ['81.3%', '68.9%', '78.9%', '75.8%', '79.8%', '77.3%', '80.1%', '78.0%', '73.5%', '73.0%', '77.6%', '71.0%', '75.1%', '77.9%', '77.5%']
+✅ Memory trace saved → outputs/memory_trace_objectnet_dinov3.png / .svg
+   🧠 Bio-Graph Memory Footprint: 566.09 MB
+   ✅ Selected alpha: 0.50 (Tuned on 386 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 76.38% | Forgetting: 5.96%
+✅ Memory comparison saved → outputs/memory_comparison_objectnet_dinov3.png / .svg
+
+✅ Ablations complete. Saved to results/sweep/ablation_objectnet_dinov3_p512_seed42.json

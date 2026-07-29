@@ -1,0 +1,1185 @@
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🚀 [1/3] Component Ablation Table...
+
+📏 Running Standalone NCM Baseline (Stage 1 Logic)...
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 1: 88.80% | Breakdown: ['88.8%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 2: 85.85% | Breakdown: ['86.0%', '85.7%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 3: 88.27% | Breakdown: ['86.7%', '86.9%', '91.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 4: 87.90% | Breakdown: ['86.8%', '86.7%', '91.4%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 5: 87.14% | Breakdown: ['85.3%', '86.2%', '91.4%', '85.0%', '87.8%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 6: 88.57% | Breakdown: ['85.9%', '86.0%', '92.1%', '85.4%', '88.7%', '93.3%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 7: 89.90% | Breakdown: ['86.0%', '86.8%', '92.4%', '85.8%', '89.8%', '92.8%', '95.7%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 8: 90.44% | Breakdown: ['86.0%', '86.3%', '92.9%', '86.0%', '89.9%', '91.6%', '94.7%', '96.1%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 9: 90.40% | Breakdown: ['85.7%', '86.0%', '92.6%', '86.3%', '89.5%', '92.1%', '91.8%', '95.5%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 10: 90.65% | Breakdown: ['86.0%', '86.2%', '92.6%', '86.3%', '88.9%', '91.3%', '91.0%', '94.8%', '93.4%', '96.0%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 11: 90.91% | Breakdown: ['85.6%', '85.9%', '92.9%', '86.5%', '89.1%', '91.1%', '90.5%', '94.0%', '93.2%', '95.6%', '95.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 12: 90.86% | Breakdown: ['85.5%', '85.3%', '92.9%', '86.5%', '88.8%', '91.4%', '90.2%', '93.2%', '92.1%', '95.3%', '94.3%', '94.8%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 13: 90.42% | Breakdown: ['85.4%', '85.7%', '92.6%', '86.5%', '88.6%', '91.4%', '89.2%', '92.5%', '91.3%', '94.5%', '93.3%', '94.2%', '90.2%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 14: 89.78% | Breakdown: ['85.5%', '86.4%', '92.8%', '86.5%', '88.5%', '91.4%', '88.5%', '90.8%', '90.5%', '94.4%', '92.6%', '94.2%', '88.9%', '85.9%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 15: 90.01% | Breakdown: ['85.7%', '86.3%', '92.8%', '86.6%', '88.2%', '91.6%', '88.6%', '90.9%', '90.5%', '93.8%', '92.6%', '93.9%', '87.8%', '85.8%', '95.1%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 16: 89.53% | Breakdown: ['85.3%', '86.3%', '92.8%', '86.2%', '87.7%', '91.4%', '88.5%', '90.5%', '90.2%', '93.1%', '92.2%', '93.6%', '87.3%', '84.9%', '93.9%', '88.6%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 17: 89.55% | Breakdown: ['85.1%', '86.2%', '92.8%', '86.6%', '87.8%', '91.4%', '88.2%', '90.5%', '90.0%', '93.0%', '92.0%', '93.2%', '86.3%', '84.8%', '93.4%', '87.8%', '93.2%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 18: 89.32% | Breakdown: ['85.2%', '86.2%', '92.7%', '86.5%', '87.9%', '91.2%', '88.5%', '89.8%', '89.8%', '92.7%', '91.5%', '93.1%', '86.0%', '84.6%', '93.4%', '87.9%', '93.1%', '87.6%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 19: 89.35% | Breakdown: ['85.3%', '85.7%', '92.6%', '86.6%', '87.8%', '91.2%', '88.8%', '89.9%', '89.6%', '92.8%', '91.4%', '93.1%', '86.0%', '83.9%', '93.1%', '87.6%', '92.8%', '86.0%', '93.4%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00
+   -> AIA after Task 20: 88.70% | Breakdown: ['85.1%', '84.3%', '92.4%', '86.5%', '87.4%', '90.9%', '88.6%', '89.0%', '89.6%', '90.9%', '90.9%', '93.2%', '85.8%', '83.8%', '92.9%', '86.6%', '92.2%', '85.4%', '91.8%', '86.6%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.23 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=0.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 88.69% | Forgetting: 3.03%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 1: 88.60% | Breakdown: ['88.6%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 2: 86.30% | Breakdown: ['86.3%', '86.3%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 3: 88.23% | Breakdown: ['86.5%', '86.9%', '91.3%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 4: 88.02% | Breakdown: ['86.6%', '87.4%', '91.4%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 5: 87.50% | Breakdown: ['85.7%', '86.4%', '91.6%', '85.1%', '88.7%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 6: 88.62% | Breakdown: ['85.6%', '86.3%', '91.7%', '85.5%', '89.1%', '93.5%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 7: 89.80% | Breakdown: ['86.1%', '86.3%', '92.4%', '85.6%', '90.1%', '92.4%', '95.7%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 8: 90.27% | Breakdown: ['86.1%', '85.7%', '92.6%', '85.9%', '89.1%', '92.0%', '94.7%', '96.1%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 9: 90.28% | Breakdown: ['85.4%', '85.8%', '92.8%', '86.0%', '89.3%', '91.9%', '91.7%', '95.5%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 10: 90.66% | Breakdown: ['85.9%', '85.8%', '93.0%', '86.3%', '88.8%', '91.2%', '91.1%', '94.9%', '93.3%', '96.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 11: 90.89% | Breakdown: ['85.6%', '85.8%', '92.9%', '86.0%', '88.6%', '91.3%', '90.6%', '94.2%', '93.2%', '96.0%', '95.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 12: 90.86% | Breakdown: ['85.2%', '85.6%', '93.1%', '86.1%', '88.8%', '91.2%', '90.3%', '93.2%', '92.0%', '95.5%', '94.5%', '94.8%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 13: 90.39% | Breakdown: ['85.4%', '85.8%', '92.6%', '86.1%', '88.4%', '91.5%', '88.8%', '92.9%', '90.4%', '94.7%', '93.4%', '94.6%', '90.5%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 14: 89.71% | Breakdown: ['85.6%', '85.6%', '92.9%', '86.1%', '88.2%', '91.4%', '88.5%', '91.2%', '89.5%', '94.3%', '92.5%', '94.5%', '88.5%', '87.2%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 15: 89.90% | Breakdown: ['85.6%', '86.0%', '92.6%', '86.2%', '88.0%', '91.7%', '88.8%', '90.4%', '89.2%', '94.1%', '91.8%', '94.4%', '87.8%', '86.7%', '95.2%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 16: 89.42% | Breakdown: ['84.8%', '85.9%', '92.6%', '86.2%', '88.3%', '91.5%', '88.4%', '89.9%', '88.9%', '92.1%', '91.6%', '93.4%', '87.8%', '85.5%', '94.1%', '89.8%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 17: 89.45% | Breakdown: ['84.6%', '85.7%', '92.8%', '86.4%', '88.6%', '91.5%', '88.0%', '89.9%', '89.2%', '92.2%', '91.1%', '92.7%', '86.8%', '85.5%', '93.7%', '89.2%', '92.7%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 18: 89.24% | Breakdown: ['85.3%', '85.6%', '92.7%', '86.0%', '88.7%', '91.5%', '88.4%', '89.6%', '89.5%', '91.4%', '90.5%', '92.3%', '86.3%', '84.8%', '93.5%', '88.9%', '92.6%', '88.7%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 19: 89.19% | Breakdown: ['85.3%', '85.4%', '92.6%', '85.7%', '88.1%', '91.5%', '88.1%', '89.6%', '89.1%', '91.6%', '90.5%', '92.6%', '86.0%', '84.5%', '93.3%', '88.4%', '92.8%', '86.6%', '92.9%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00
+   -> AIA after Task 20: 88.64% | Breakdown: ['85.0%', '83.8%', '92.2%', '85.8%', '87.9%', '91.1%', '87.9%', '88.8%', '88.8%', '91.1%', '90.1%', '92.5%', '86.0%', '84.3%', '93.4%', '86.7%', '92.2%', '85.6%', '91.6%', '88.1%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.23 MB
+   ℹ️  Fixed Alpha Ablation: Using alpha=1.00 (Tuning skipped)
+
+   🏆 Pure CIL Metrics -> AIA: 88.64% | Forgetting: 3.38%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.5%)
+   -> AIA after Task 1: 88.80% | Breakdown: ['88.8%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.2%)
+   -> AIA after Task 2: 86.05% | Breakdown: ['86.1%', '86.0%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.5%)
+   -> AIA after Task 3: 88.27% | Breakdown: ['86.7%', '86.9%', '91.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 90.7%)
+   -> AIA after Task 4: 88.02% | Breakdown: ['86.6%', '87.4%', '91.4%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.8%)
+   -> AIA after Task 5: 87.50% | Breakdown: ['85.6%', '86.4%', '91.7%', '85.4%', '88.4%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.5%)
+   -> AIA after Task 6: 88.65% | Breakdown: ['85.9%', '86.3%', '91.9%', '85.3%', '89.1%', '93.4%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.7%)
+   -> AIA after Task 7: 89.94% | Breakdown: ['86.2%', '86.6%', '92.4%', '85.7%', '90.4%', '92.6%', '95.7%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 8: 90.36% | Breakdown: ['86.0%', '86.1%', '93.0%', '85.7%', '89.6%', '91.9%', '94.6%', '96.0%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.9%)
+   -> AIA after Task 9: 90.32% | Breakdown: ['85.5%', '86.0%', '92.8%', '85.8%', '89.5%', '92.0%', '91.7%', '95.5%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 10: 90.71% | Breakdown: ['85.8%', '86.4%', '92.9%', '86.0%', '89.1%', '91.2%', '91.1%', '94.8%', '93.5%', '96.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 11: 90.88% | Breakdown: ['85.3%', '85.9%', '92.8%', '86.3%', '89.0%', '91.2%', '90.5%', '94.1%', '93.3%', '95.7%', '95.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 92.2%)
+   -> AIA after Task 12: 90.91% | Breakdown: ['85.1%', '85.8%', '92.9%', '86.4%', '89.0%', '91.1%', '90.3%', '93.2%', '92.2%', '95.5%', '94.4%', '95.0%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.4%)
+   -> AIA after Task 13: 90.38% | Breakdown: ['85.3%', '85.7%', '92.6%', '86.7%', '88.5%', '91.0%', '88.5%', '92.8%', '91.2%', '94.8%', '93.4%', '94.3%', '90.1%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.6%)
+   -> AIA after Task 14: 89.83% | Breakdown: ['85.4%', '85.8%', '92.8%', '86.8%', '88.2%', '91.3%', '88.5%', '91.4%', '90.0%', '94.6%', '92.7%', '94.5%', '89.0%', '86.6%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.5%)
+   -> AIA after Task 15: 90.00% | Breakdown: ['85.3%', '86.1%', '92.7%', '86.8%', '88.3%', '91.4%', '88.6%', '90.9%', '90.0%', '94.3%', '92.4%', '94.1%', '87.9%', '86.0%', '95.2%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.2%)
+   -> AIA after Task 16: 89.57% | Breakdown: ['84.7%', '85.8%', '92.6%', '86.3%', '88.2%', '91.2%', '88.6%', '90.5%', '89.8%', '92.8%', '92.1%', '93.6%', '87.6%', '85.3%', '94.0%', '90.0%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.0%)
+   -> AIA after Task 17: 89.65% | Breakdown: ['84.8%', '86.1%', '92.9%', '86.4%', '88.1%', '91.5%', '88.4%', '90.4%', '89.8%', '93.3%', '91.9%', '93.2%', '86.9%', '85.0%', '93.5%', '88.7%', '93.1%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 18: 89.39% | Breakdown: ['85.2%', '86.2%', '92.7%', '86.3%', '88.4%', '91.3%', '88.7%', '89.9%', '89.5%', '92.6%', '91.1%', '93.3%', '86.3%', '84.9%', '93.3%', '88.4%', '92.8%', '88.1%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 19: 89.44% | Breakdown: ['85.1%', '86.2%', '92.5%', '86.6%', '87.7%', '91.1%', '88.9%', '90.0%', '89.5%', '92.9%', '91.0%', '93.6%', '86.1%', '84.4%', '93.5%', '88.1%', '92.6%', '86.1%', '93.5%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.0%)
+   -> AIA after Task 20: 88.88% | Breakdown: ['85.0%', '84.6%', '92.2%', '86.3%', '87.6%', '90.9%', '88.2%', '89.2%', '89.4%', '91.2%', '90.7%', '93.4%', '86.0%', '84.4%', '93.3%', '87.2%', '91.8%', '86.6%', '92.0%', '87.5%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.23 MB
+   ✅ Selected alpha: 1.00 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.88% | Forgetting: 3.11%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+
+🚀 [2/3] Lambda Sweep...
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.7%)
+   -> AIA after Task 1: 88.40% | Breakdown: ['88.4%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.4%)
+   -> AIA after Task 2: 85.35% | Breakdown: ['85.0%', '85.7%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 88.9%)
+   -> AIA after Task 3: 88.40% | Breakdown: ['85.5%', '87.5%', '92.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.7%)
+   -> AIA after Task 4: 87.88% | Breakdown: ['85.1%', '87.4%', '92.3%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 89.7%)
+   -> AIA after Task 5: 87.52% | Breakdown: ['85.5%', '86.2%', '92.6%', '85.1%', '88.2%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 90.3%)
+   -> AIA after Task 6: 88.60% | Breakdown: ['85.3%', '86.9%', '92.4%', '85.9%', '88.4%', '92.7%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 91.6%)
+   -> AIA after Task 7: 89.97% | Breakdown: ['85.4%', '86.9%', '92.4%', '86.2%', '90.3%', '92.3%', '96.3%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.9%)
+   -> AIA after Task 8: 90.60% | Breakdown: ['85.6%', '86.7%', '93.3%', '86.4%', '89.7%', '91.9%', '95.3%', '95.9%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.8%)
+   -> AIA after Task 9: 90.46% | Breakdown: ['85.2%', '86.8%', '92.9%', '86.6%', '88.7%', '91.6%', '92.6%', '95.6%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 10: 90.82% | Breakdown: ['85.6%', '86.9%', '93.1%', '86.7%', '89.1%', '91.2%', '91.6%', '94.8%', '92.9%', '96.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 92.0%)
+   -> AIA after Task 11: 90.96% | Breakdown: ['85.7%', '86.8%', '93.3%', '86.3%', '89.7%', '91.0%', '90.6%', '93.6%', '92.2%', '96.4%', '95.0%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 92.1%)
+   -> AIA after Task 12: 91.05% | Breakdown: ['85.6%', '86.6%', '93.5%', '87.1%', '89.2%', '90.7%', '90.8%', '92.5%', '91.3%', '95.7%', '93.9%', '95.7%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 91.5%)
+   -> AIA after Task 13: 90.59% | Breakdown: ['85.5%', '86.5%', '93.3%', '87.1%', '88.6%', '90.8%', '89.4%', '92.1%', '90.6%', '95.5%', '93.2%', '95.2%', '89.9%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.9%)
+   -> AIA after Task 14: 90.01% | Breakdown: ['85.2%', '86.4%', '93.5%', '87.0%', '88.2%', '91.2%', '89.7%', '90.8%', '90.1%', '95.1%', '92.8%', '94.3%', '89.2%', '86.7%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.9%)
+   -> AIA after Task 15: 90.15% | Breakdown: ['85.2%', '86.0%', '92.9%', '87.1%', '88.1%', '91.4%', '90.1%', '90.9%', '90.1%', '94.3%', '92.5%', '94.2%', '87.9%', '86.3%', '95.2%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 90.6%)
+   -> AIA after Task 16: 89.62% | Breakdown: ['84.9%', '86.1%', '92.8%', '86.6%', '88.1%', '91.2%', '89.6%', '90.1%', '89.6%', '93.3%', '92.0%', '93.8%', '87.0%', '85.5%', '94.2%', '89.1%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.4%)
+   -> AIA after Task 17: 89.68% | Breakdown: ['85.0%', '86.0%', '92.8%', '87.4%', '88.4%', '91.4%', '88.8%', '90.7%', '90.0%', '93.0%', '91.8%', '93.0%', '86.1%', '84.7%', '93.5%', '88.1%', '93.9%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.9%)
+   -> AIA after Task 18: 89.41% | Breakdown: ['85.0%', '85.7%', '92.9%', '87.1%', '88.3%', '91.5%', '88.7%', '90.0%', '89.4%', '92.6%', '91.1%', '93.1%', '86.1%', '84.7%', '93.3%', '88.0%', '93.3%', '88.5%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.9%)
+   -> AIA after Task 19: 89.49% | Breakdown: ['85.3%', '85.4%', '92.7%', '87.2%', '88.4%', '91.4%', '88.6%', '90.1%', '89.2%', '92.6%', '90.9%', '93.2%', '86.3%', '85.0%', '93.4%', '87.8%', '93.4%', '86.5%', '92.9%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.1%)
+   -> AIA after Task 20: 88.81% | Breakdown: ['85.0%', '84.4%', '92.0%', '86.8%', '88.2%', '90.6%', '88.1%', '89.5%', '89.2%', '91.1%', '90.2%', '92.9%', '85.4%', '84.7%', '93.4%', '86.7%', '92.0%', '85.7%', '91.6%', '88.7%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.99 MB
+   ✅ Selected alpha: 0.50 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.81% | Forgetting: 3.26%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.5%)
+   -> AIA after Task 1: 88.80% | Breakdown: ['88.8%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.2%)
+   -> AIA after Task 2: 86.05% | Breakdown: ['86.1%', '86.0%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.5%)
+   -> AIA after Task 3: 88.27% | Breakdown: ['86.7%', '86.9%', '91.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 90.7%)
+   -> AIA after Task 4: 88.02% | Breakdown: ['86.6%', '87.4%', '91.4%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.8%)
+   -> AIA after Task 5: 87.50% | Breakdown: ['85.6%', '86.4%', '91.7%', '85.4%', '88.4%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.5%)
+   -> AIA after Task 6: 88.65% | Breakdown: ['85.9%', '86.3%', '91.9%', '85.3%', '89.1%', '93.4%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.7%)
+   -> AIA after Task 7: 89.94% | Breakdown: ['86.2%', '86.6%', '92.4%', '85.7%', '90.4%', '92.6%', '95.7%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 8: 90.36% | Breakdown: ['86.0%', '86.1%', '93.0%', '85.7%', '89.6%', '91.9%', '94.6%', '96.0%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.9%)
+   -> AIA after Task 9: 90.32% | Breakdown: ['85.5%', '86.0%', '92.8%', '85.8%', '89.5%', '92.0%', '91.7%', '95.5%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 10: 90.71% | Breakdown: ['85.8%', '86.4%', '92.9%', '86.0%', '89.1%', '91.2%', '91.1%', '94.8%', '93.5%', '96.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 11: 90.88% | Breakdown: ['85.3%', '85.9%', '92.8%', '86.3%', '89.0%', '91.2%', '90.5%', '94.1%', '93.3%', '95.7%', '95.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 92.2%)
+   -> AIA after Task 12: 90.91% | Breakdown: ['85.1%', '85.8%', '92.9%', '86.4%', '89.0%', '91.1%', '90.3%', '93.2%', '92.2%', '95.5%', '94.4%', '95.0%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.4%)
+   -> AIA after Task 13: 90.38% | Breakdown: ['85.3%', '85.7%', '92.6%', '86.7%', '88.5%', '91.0%', '88.5%', '92.8%', '91.2%', '94.8%', '93.4%', '94.3%', '90.1%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.6%)
+   -> AIA after Task 14: 89.83% | Breakdown: ['85.4%', '85.8%', '92.8%', '86.8%', '88.2%', '91.3%', '88.5%', '91.4%', '90.0%', '94.6%', '92.7%', '94.5%', '89.0%', '86.6%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.5%)
+   -> AIA after Task 15: 90.00% | Breakdown: ['85.3%', '86.1%', '92.7%', '86.8%', '88.3%', '91.4%', '88.6%', '90.9%', '90.0%', '94.3%', '92.4%', '94.1%', '87.9%', '86.0%', '95.2%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.2%)
+   -> AIA after Task 16: 89.57% | Breakdown: ['84.7%', '85.8%', '92.6%', '86.3%', '88.2%', '91.2%', '88.6%', '90.5%', '89.8%', '92.8%', '92.1%', '93.6%', '87.6%', '85.3%', '94.0%', '90.0%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.0%)
+   -> AIA after Task 17: 89.65% | Breakdown: ['84.8%', '86.1%', '92.9%', '86.4%', '88.1%', '91.5%', '88.4%', '90.4%', '89.8%', '93.3%', '91.9%', '93.2%', '86.9%', '85.0%', '93.5%', '88.7%', '93.1%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 18: 89.39% | Breakdown: ['85.2%', '86.2%', '92.7%', '86.3%', '88.4%', '91.3%', '88.7%', '89.9%', '89.5%', '92.6%', '91.1%', '93.3%', '86.3%', '84.9%', '93.3%', '88.4%', '92.8%', '88.1%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 19: 89.44% | Breakdown: ['85.1%', '86.2%', '92.5%', '86.6%', '87.7%', '91.1%', '88.9%', '90.0%', '89.5%', '92.9%', '91.0%', '93.6%', '86.1%', '84.4%', '93.5%', '88.1%', '92.6%', '86.1%', '93.5%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.0%)
+   -> AIA after Task 20: 88.88% | Breakdown: ['85.0%', '84.6%', '92.2%', '86.3%', '87.6%', '90.9%', '88.2%', '89.2%', '89.4%', '91.2%', '90.7%', '93.4%', '86.0%', '84.4%', '93.3%', '87.2%', '91.8%', '86.6%', '92.0%', '87.5%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.23 MB
+   ✅ Selected alpha: 1.00 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.88% | Forgetting: 3.11%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.7%)
+   -> AIA after Task 1: 87.00% | Breakdown: ['87.0%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 87.6%)
+   -> AIA after Task 2: 85.55% | Breakdown: ['84.9%', '86.2%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.7%)
+   -> AIA after Task 3: 88.00% | Breakdown: ['86.8%', '86.8%', '90.4%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.0%)
+   -> AIA after Task 4: 87.60% | Breakdown: ['86.2%', '87.3%', '90.4%', '86.5%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 89.5%)
+   -> AIA after Task 5: 87.42% | Breakdown: ['86.0%', '86.0%', '91.0%', '85.3%', '88.8%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.7%)
+   -> AIA after Task 6: 88.37% | Breakdown: ['86.5%', '86.0%', '91.8%', '84.7%', '88.6%', '92.6%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.2%)
+   -> AIA after Task 7: 89.84% | Breakdown: ['86.4%', '86.5%', '92.7%', '85.7%', '89.0%', '92.5%', '96.1%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.7%)
+   -> AIA after Task 8: 90.64% | Breakdown: ['86.6%', '86.7%', '92.9%', '86.1%', '88.8%', '92.2%', '95.3%', '96.5%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 91.9%)
+   -> AIA after Task 9: 90.47% | Breakdown: ['86.6%', '86.2%', '93.1%', '85.7%', '89.0%', '91.8%', '92.3%', '95.3%', '94.2%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.7%)
+   -> AIA after Task 10: 90.78% | Breakdown: ['87.1%', '86.4%', '92.8%', '86.1%', '89.1%', '91.3%', '91.8%', '94.8%', '93.0%', '95.4%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.4%)
+   -> AIA after Task 11: 91.06% | Breakdown: ['87.1%', '86.2%', '92.7%', '86.9%', '88.5%', '91.6%', '91.7%', '93.8%', '92.6%', '95.2%', '95.4%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.6%)
+   -> AIA after Task 12: 91.26% | Breakdown: ['87.2%', '86.0%', '93.0%', '86.6%', '88.8%', '91.8%', '91.3%', '93.4%', '92.5%', '95.1%', '94.6%', '94.8%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.1%)
+   -> AIA after Task 13: 90.59% | Breakdown: ['86.9%', '86.0%', '92.7%', '86.5%', '88.0%', '91.7%', '90.1%', '92.8%', '90.9%', '94.6%', '93.8%', '94.6%', '89.1%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 90.5%)
+   -> AIA after Task 14: 89.97% | Breakdown: ['86.9%', '86.1%', '93.1%', '86.3%', '88.3%', '91.8%', '89.2%', '90.8%', '90.4%', '94.7%', '92.6%', '94.3%', '88.1%', '87.0%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 90.7%)
+   -> AIA after Task 15: 90.24% | Breakdown: ['86.9%', '86.4%', '92.3%', '86.6%', '88.3%', '91.9%', '90.2%', '90.4%', '90.5%', '94.1%', '92.5%', '94.3%', '87.3%', '86.6%', '95.3%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.2%)
+   -> AIA after Task 16: 89.62% | Breakdown: ['86.6%', '86.0%', '92.1%', '86.3%', '87.9%', '91.6%', '90.0%', '90.0%', '90.2%', '92.2%', '92.3%', '93.5%', '86.7%', '85.5%', '94.2%', '88.8%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 90.1%)
+   -> AIA after Task 17: 89.35% | Breakdown: ['86.3%', '85.7%', '92.3%', '86.3%', '88.3%', '92.0%', '88.7%', '88.9%', '89.3%', '92.0%', '90.8%', '92.7%', '86.4%', '84.7%', '93.4%', '88.2%', '92.9%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 89.7%)
+   -> AIA after Task 18: 89.24% | Breakdown: ['86.2%', '85.5%', '92.2%', '86.1%', '88.7%', '92.1%', '88.1%', '89.1%', '88.8%', '91.7%', '90.1%', '92.7%', '86.2%', '85.0%', '93.5%', '88.1%', '92.8%', '89.4%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.5%)
+   -> AIA after Task 19: 89.35% | Breakdown: ['86.3%', '86.0%', '92.3%', '86.6%', '88.1%', '91.9%', '88.3%', '89.7%', '89.0%', '91.5%', '90.4%', '93.3%', '86.0%', '84.2%', '93.8%', '87.6%', '92.5%', '87.6%', '92.6%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 89.0%)
+   -> AIA after Task 20: 88.78% | Breakdown: ['86.1%', '84.3%', '91.7%', '86.1%', '88.2%', '91.9%', '88.3%', '88.8%', '88.6%', '91.3%', '89.3%', '92.9%', '85.8%', '84.3%', '93.0%', '87.3%', '92.2%', '86.6%', '91.1%', '87.9%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 156.93 MB
+   ✅ Selected alpha: 0.90 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.78% | Forgetting: 2.94%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+
+🚀 [3/3] Node Count Sweep (Fixed alpha=0.5)...
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 58.0%)
+   -> AIA after Task 1: 56.30% | Breakdown: ['56.3%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 54.0%)
+   -> AIA after Task 2: 54.35% | Breakdown: ['52.7%', '56.0%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 62.0%)
+   -> AIA after Task 3: 61.57% | Breakdown: ['48.4%', '56.9%', '79.4%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 67.9%)
+   -> AIA after Task 4: 66.67% | Breakdown: ['48.5%', '57.3%', '78.9%', '82.0%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 65.3%)
+   -> AIA after Task 5: 64.60% | Breakdown: ['48.1%', '55.1%', '77.5%', '80.9%', '61.4%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 67.0%)
+   -> AIA after Task 6: 67.07% | Breakdown: ['47.0%', '54.9%', '77.3%', '80.9%', '59.4%', '82.9%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 69.3%)
+   -> AIA after Task 7: 69.51% | Breakdown: ['47.8%', '54.6%', '77.4%', '80.6%', '59.8%', '83.0%', '83.4%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 70.4%)
+   -> AIA after Task 8: 70.26% | Breakdown: ['48.3%', '54.9%', '77.7%', '80.5%', '59.8%', '82.6%', '80.1%', '78.2%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 72.2%)
+   -> AIA after Task 9: 72.09% | Breakdown: ['48.7%', '55.2%', '78.1%', '81.0%', '60.0%', '81.9%', '76.9%', '77.1%', '89.9%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 72.9%)
+   -> AIA after Task 10: 72.66% | Breakdown: ['47.6%', '55.6%', '76.8%', '81.0%', '59.6%', '81.7%', '76.0%', '76.2%', '88.6%', '83.5%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 73.3%)
+   -> AIA after Task 11: 72.93% | Breakdown: ['48.9%', '55.5%', '77.3%', '81.2%', '59.8%', '81.3%', '75.9%', '75.5%', '88.7%', '83.6%', '74.5%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 74.8%)
+   -> AIA after Task 12: 74.22% | Breakdown: ['48.7%', '55.7%', '77.2%', '80.9%', '59.2%', '81.5%', '74.9%', '74.7%', '87.9%', '83.4%', '73.0%', '93.6%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 73.3%)
+   -> AIA after Task 13: 72.95% | Breakdown: ['48.2%', '55.4%', '77.3%', '81.1%', '59.1%', '81.4%', '74.3%', '74.1%', '87.1%', '83.1%', '72.3%', '93.5%', '61.5%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 73.3%)
+   -> AIA after Task 14: 73.41% | Breakdown: ['48.9%', '55.6%', '78.3%', '80.4%', '58.9%', '80.9%', '73.3%', '73.7%', '86.4%', '80.9%', '71.5%', '92.6%', '60.6%', '85.7%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 73.3%)
+   -> AIA after Task 15: 73.17% | Breakdown: ['48.1%', '55.9%', '77.1%', '80.9%', '59.2%', '80.8%', '72.7%', '73.3%', '86.0%', '81.3%', '71.5%', '92.0%', '60.7%', '86.1%', '72.0%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 73.3%)
+   -> AIA after Task 16: 72.69% | Breakdown: ['48.1%', '54.4%', '75.7%', '80.5%', '58.6%', '80.9%', '72.2%', '73.0%', '85.4%', '79.5%', '70.8%', '91.8%', '60.4%', '84.6%', '70.7%', '76.4%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 72.8%)
+   -> AIA after Task 17: 72.10% | Breakdown: ['47.7%', '54.8%', '75.7%', '80.3%', '58.4%', '81.0%', '70.9%', '72.6%', '85.5%', '79.7%', '69.7%', '91.8%', '59.8%', '84.5%', '70.6%', '75.9%', '66.8%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 72.3%)
+   -> AIA after Task 18: 71.25% | Breakdown: ['48.2%', '54.1%', '75.9%', '80.7%', '58.5%', '80.8%', '69.9%', '72.3%', '85.3%', '79.4%', '69.8%', '91.4%', '59.8%', '83.9%', '70.6%', '75.7%', '66.9%', '59.3%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 72.9%)
+   -> AIA after Task 19: 71.91% | Breakdown: ['47.9%', '53.8%', '75.3%', '80.2%', '58.4%', '80.7%', '69.6%', '71.8%', '85.4%', '79.5%', '69.6%', '91.3%', '59.6%', '83.5%', '70.5%', '75.3%', '67.0%', '56.4%', '90.5%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 73.1%)
+   -> AIA after Task 20: 72.04% | Breakdown: ['47.1%', '51.6%', '73.8%', '80.2%', '57.9%', '80.7%', '69.3%', '70.6%', '84.7%', '78.3%', '69.3%', '91.2%', '59.5%', '83.1%', '69.7%', '74.7%', '66.7%', '55.0%', '89.2%', '88.1%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 37.60 MB
+   ✅ Selected alpha: 0.50 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 72.04% | Forgetting: 4.36%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 90.2%)
+   -> AIA after Task 1: 88.70% | Breakdown: ['88.7%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 87.3%)
+   -> AIA after Task 2: 85.25% | Breakdown: ['84.9%', '85.6%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.4%)
+   -> AIA after Task 3: 87.17% | Breakdown: ['85.0%', '85.8%', '90.7%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.8%)
+   -> AIA after Task 4: 86.00% | Breakdown: ['83.7%', '85.7%', '90.5%', '84.1%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 87.3%)
+   -> AIA after Task 5: 84.42% | Breakdown: ['83.4%', '83.4%', '89.5%', '80.9%', '84.9%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.0%)
+   -> AIA after Task 6: 85.83% | Breakdown: ['83.7%', '83.4%', '90.4%', '82.5%', '85.4%', '89.6%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.7%)
+   -> AIA after Task 7: 87.96% | Breakdown: ['83.7%', '83.7%', '91.7%', '82.7%', '89.2%', '90.3%', '94.4%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.8%)
+   -> AIA after Task 8: 87.52% | Breakdown: ['83.8%', '82.8%', '90.5%', '82.1%', '87.7%', '89.8%', '90.5%', '93.0%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 87.9%)
+   -> AIA after Task 9: 86.96% | Breakdown: ['83.0%', '82.6%', '89.3%', '80.5%', '86.0%', '89.3%', '89.8%', '92.3%', '89.8%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.4%)
+   -> AIA after Task 10: 87.68% | Breakdown: ['83.4%', '83.3%', '89.6%', '82.0%', '86.5%', '89.6%', '88.9%', '92.2%', '90.0%', '91.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.6%)
+   -> AIA after Task 11: 87.71% | Breakdown: ['84.1%', '83.5%', '90.0%', '80.6%', '87.6%', '89.4%', '88.6%', '91.8%', '88.9%', '91.4%', '88.9%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 88.7%)
+   -> AIA after Task 12: 88.08% | Breakdown: ['84.8%', '83.0%', '90.6%', '81.0%', '87.9%', '89.7%', '88.7%', '91.4%', '89.0%', '90.7%', '88.7%', '91.4%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.0%)
+   -> AIA after Task 13: 87.11% | Breakdown: ['83.7%', '82.5%', '89.5%', '79.9%', '87.0%', '89.3%', '88.2%', '91.0%', '88.8%', '89.8%', '88.8%', '90.0%', '83.9%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.6%)
+   -> AIA after Task 14: 85.94% | Breakdown: ['83.2%', '82.7%', '89.4%', '80.6%', '86.3%', '89.4%', '88.2%', '87.6%', '87.1%', '89.9%', '87.3%', '89.3%', '80.3%', '81.8%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.8%)
+   -> AIA after Task 15: 86.14% | Breakdown: ['82.8%', '82.7%', '89.5%', '80.5%', '86.3%', '89.6%', '88.2%', '88.8%', '87.2%', '89.0%', '87.1%', '88.5%', '80.1%', '81.5%', '90.3%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.5%)
+   -> AIA after Task 16: 85.58% | Breakdown: ['81.8%', '82.7%', '89.0%', '79.4%', '85.9%', '89.4%', '88.3%', '87.6%', '87.6%', '88.3%', '86.8%', '88.4%', '79.4%', '81.0%', '88.7%', '84.9%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.8%)
+   -> AIA after Task 17: 85.82% | Breakdown: ['82.0%', '82.8%', '89.5%', '79.3%', '86.0%', '90.3%', '87.2%', '87.5%', '88.1%', '89.0%', '86.2%', '88.0%', '79.1%', '81.5%', '88.9%', '84.5%', '89.1%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 86.3%)
+   -> AIA after Task 18: 85.43% | Breakdown: ['82.1%', '82.6%', '88.7%', '78.3%', '86.2%', '90.3%', '86.7%', '87.3%', '87.1%', '88.2%', '85.9%', '88.1%', '79.6%', '81.8%', '88.5%', '83.7%', '88.7%', '84.0%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 86.5%)
+   -> AIA after Task 19: 85.57% | Breakdown: ['82.7%', '82.2%', '89.4%', '78.5%', '85.8%', '90.3%', '86.2%', '86.9%', '87.1%', '88.1%', '85.8%', '88.0%', '80.2%', '82.2%', '88.6%', '83.6%', '89.2%', '83.2%', '87.8%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 85.9%)
+   -> AIA after Task 20: 85.21% | Breakdown: ['83.0%', '79.8%', '88.5%', '79.3%', '85.8%', '89.9%', '86.2%', '86.4%', '87.3%', '87.1%', '85.6%', '87.7%', '80.4%', '81.5%', '88.8%', '83.1%', '89.0%', '83.2%', '87.2%', '84.4%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 77.61 MB
+   ✅ Selected alpha: 0.50 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 85.21% | Forgetting: 3.23%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.7%)
+   -> AIA after Task 1: 87.90% | Breakdown: ['87.9%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.5%)
+   -> AIA after Task 2: 84.60% | Breakdown: ['84.3%', '84.9%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 88.6%)
+   -> AIA after Task 3: 87.07% | Breakdown: ['84.9%', '86.1%', '90.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 89.9%)
+   -> AIA after Task 4: 86.42% | Breakdown: ['84.4%', '86.2%', '89.8%', '85.3%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 88.8%)
+   -> AIA after Task 5: 86.36% | Breakdown: ['84.1%', '85.7%', '90.6%', '84.1%', '87.3%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.8%)
+   -> AIA after Task 6: 87.57% | Breakdown: ['84.9%', '86.2%', '91.6%', '84.4%', '87.9%', '90.4%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.0%)
+   -> AIA after Task 7: 89.16% | Breakdown: ['84.9%', '86.4%', '92.4%', '85.2%', '88.4%', '90.7%', '96.1%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.2%)
+   -> AIA after Task 8: 89.72% | Breakdown: ['85.7%', '86.1%', '92.1%', '85.5%', '87.9%', '90.2%', '94.0%', '96.3%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 91.2%)
+   -> AIA after Task 9: 89.79% | Breakdown: ['85.1%', '85.8%', '92.1%', '85.9%', '88.5%', '90.1%', '91.5%', '95.9%', '93.2%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.1%)
+   -> AIA after Task 10: 89.96% | Breakdown: ['85.6%', '85.8%', '92.3%', '85.5%', '87.7%', '90.8%', '91.0%', '94.3%', '92.1%', '94.5%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.1%)
+   -> AIA after Task 11: 90.27% | Breakdown: ['85.2%', '86.2%', '92.0%', '85.9%', '87.9%', '90.4%', '90.5%', '93.5%', '92.2%', '94.6%', '94.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.80 (Val Acc: 91.1%)
+   -> AIA after Task 12: 90.21% | Breakdown: ['85.2%', '85.5%', '92.1%', '85.3%', '87.8%', '89.9%', '90.5%', '93.1%', '90.6%', '94.1%', '94.0%', '94.4%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 90.4%)
+   -> AIA after Task 13: 89.78% | Breakdown: ['84.6%', '85.3%', '92.4%', '85.4%', '88.2%', '90.1%', '88.9%', '92.6%', '90.0%', '93.3%', '93.3%', '93.8%', '89.2%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 89.7%)
+   -> AIA after Task 14: 89.34% | Breakdown: ['84.8%', '85.9%', '92.3%', '85.3%', '87.7%', '90.6%', '88.8%', '91.6%', '89.8%', '93.7%', '92.0%', '93.8%', '88.8%', '85.6%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.90 (Val Acc: 89.8%)
+   -> AIA after Task 15: 89.30% | Breakdown: ['85.1%', '85.4%', '91.6%', '85.0%', '87.5%', '90.6%', '88.9%', '90.9%', '89.7%', '92.8%', '92.4%', '93.0%', '87.5%', '85.2%', '93.9%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 16: 88.97% | Breakdown: ['84.6%', '85.7%', '91.2%', '85.3%', '87.3%', '90.6%', '88.9%', '90.4%', '89.7%', '91.1%', '92.0%', '92.6%', '86.4%', '85.2%', '93.1%', '89.4%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.4%)
+   -> AIA after Task 17: 88.70% | Breakdown: ['84.4%', '85.7%', '90.9%', '84.7%', '87.3%', '90.4%', '87.3%', '89.9%', '89.3%', '90.7%', '90.7%', '91.9%', '85.3%', '84.9%', '92.4%', '89.1%', '93.0%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.2%)
+   -> AIA after Task 18: 88.59% | Breakdown: ['84.5%', '85.0%', '91.1%', '85.4%', '87.1%', '90.6%', '87.7%', '89.9%', '88.5%', '90.5%', '90.6%', '92.0%', '85.6%', '84.0%', '92.3%', '88.5%', '92.9%', '88.5%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.1%)
+   -> AIA after Task 19: 88.66% | Breakdown: ['84.9%', '84.9%', '91.1%', '84.9%', '86.9%', '90.3%', '87.5%', '89.9%', '88.7%', '90.5%', '90.6%', '91.9%', '85.9%', '83.9%', '92.2%', '88.4%', '92.8%', '87.0%', '92.2%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 88.4%)
+   -> AIA after Task 20: 88.14% | Breakdown: ['84.7%', '83.4%', '90.6%', '84.7%', '86.7%', '90.2%', '87.4%', '89.3%', '88.8%', '89.5%', '90.3%', '91.8%', '85.7%', '83.4%', '92.1%', '88.0%', '92.9%', '86.1%', '91.0%', '86.2%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 133.00 MB
+   ✅ Selected alpha: 0.30 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.14% | Forgetting: 2.96%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+🔄 Preparing Dataset: TINYIMAGENET...
+   📐 Preprocessing: 384px, norm=custom
+✅ Tiny-ImageNet found at ./data/tiny-imagenet-200
+✅ Loaded 100000 images. Classes expected: 200
+💾 Loading cached siglip2 features for tinyimagenet (Train)...
+
+🌱 --- Starting Run with Seed: 42 ---
+   📦 Stream samples: 72000 | Val samples: 8000
+   🚀 Training Bio-Inspired Graph (Hippocampus + Cortex)...
+
+   🌀 --- PURE CIL MODE SCENARIO ---
+
+   📚 Training Task 1/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 91.5%)
+   -> AIA after Task 1: 88.80% | Breakdown: ['88.8%']
+
+   📚 Training Task 2/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 88.2%)
+   -> AIA after Task 2: 86.05% | Breakdown: ['86.1%', '86.0%']
+
+   📚 Training Task 3/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.00 (Val Acc: 89.5%)
+   -> AIA after Task 3: 88.27% | Breakdown: ['86.7%', '86.9%', '91.2%']
+
+   📚 Training Task 4/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=1.00 (Val Acc: 90.7%)
+   -> AIA after Task 4: 88.02% | Breakdown: ['86.6%', '87.4%', '91.4%', '86.7%']
+
+   📚 Training Task 5/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.70 (Val Acc: 89.8%)
+   -> AIA after Task 5: 87.50% | Breakdown: ['85.6%', '86.4%', '91.7%', '85.4%', '88.4%']
+
+   📚 Training Task 6/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.5%)
+   -> AIA after Task 6: 88.65% | Breakdown: ['85.9%', '86.3%', '91.9%', '85.3%', '89.1%', '93.4%']
+
+   📚 Training Task 7/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.7%)
+   -> AIA after Task 7: 89.94% | Breakdown: ['86.2%', '86.6%', '92.4%', '85.7%', '90.4%', '92.6%', '95.7%']
+
+   📚 Training Task 8/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 8: 90.36% | Breakdown: ['86.0%', '86.1%', '93.0%', '85.7%', '89.6%', '91.9%', '94.6%', '96.0%']
+
+   📚 Training Task 9/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.9%)
+   -> AIA after Task 9: 90.32% | Breakdown: ['85.5%', '86.0%', '92.8%', '85.8%', '89.5%', '92.0%', '91.7%', '95.5%', '94.1%']
+
+   📚 Training Task 10/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 10: 90.71% | Breakdown: ['85.8%', '86.4%', '92.9%', '86.0%', '89.1%', '91.2%', '91.1%', '94.8%', '93.5%', '96.3%']
+
+   📚 Training Task 11/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 91.9%)
+   -> AIA after Task 11: 90.88% | Breakdown: ['85.3%', '85.9%', '92.8%', '86.3%', '89.0%', '91.2%', '90.5%', '94.1%', '93.3%', '95.7%', '95.6%']
+
+   📚 Training Task 12/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 92.2%)
+   -> AIA after Task 12: 90.91% | Breakdown: ['85.1%', '85.8%', '92.9%', '86.4%', '89.0%', '91.1%', '90.3%', '93.2%', '92.2%', '95.5%', '94.4%', '95.0%']
+
+   📚 Training Task 13/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 91.4%)
+   -> AIA after Task 13: 90.38% | Breakdown: ['85.3%', '85.7%', '92.6%', '86.7%', '88.5%', '91.0%', '88.5%', '92.8%', '91.2%', '94.8%', '93.4%', '94.3%', '90.1%']
+
+   📚 Training Task 14/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.6%)
+   -> AIA after Task 14: 89.83% | Breakdown: ['85.4%', '85.8%', '92.8%', '86.8%', '88.2%', '91.3%', '88.5%', '91.4%', '90.0%', '94.6%', '92.7%', '94.5%', '89.0%', '86.6%']
+
+   📚 Training Task 15/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.5%)
+   -> AIA after Task 15: 90.00% | Breakdown: ['85.3%', '86.1%', '92.7%', '86.8%', '88.3%', '91.4%', '88.6%', '90.9%', '90.0%', '94.3%', '92.4%', '94.1%', '87.9%', '86.0%', '95.2%']
+
+   📚 Training Task 16/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 90.2%)
+   -> AIA after Task 16: 89.57% | Breakdown: ['84.7%', '85.8%', '92.6%', '86.3%', '88.2%', '91.2%', '88.6%', '90.5%', '89.8%', '92.8%', '92.1%', '93.6%', '87.6%', '85.3%', '94.0%', '90.0%']
+
+   📚 Training Task 17/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 90.0%)
+   -> AIA after Task 17: 89.65% | Breakdown: ['84.8%', '86.1%', '92.9%', '86.4%', '88.1%', '91.5%', '88.4%', '90.4%', '89.8%', '93.3%', '91.9%', '93.2%', '86.9%', '85.0%', '93.5%', '88.7%', '93.1%']
+
+   📚 Training Task 18/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 18: 89.39% | Breakdown: ['85.2%', '86.2%', '92.7%', '86.3%', '88.4%', '91.3%', '88.7%', '89.9%', '89.5%', '92.6%', '91.1%', '93.3%', '86.3%', '84.9%', '93.3%', '88.4%', '92.8%', '88.1%']
+
+   📚 Training Task 19/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.30 (Val Acc: 89.6%)
+   -> AIA after Task 19: 89.44% | Breakdown: ['85.1%', '86.2%', '92.5%', '86.6%', '87.7%', '91.1%', '88.9%', '90.0%', '89.5%', '92.9%', '91.0%', '93.6%', '86.1%', '84.4%', '93.5%', '88.1%', '92.6%', '86.1%', '93.5%']
+
+   📚 Training Task 20/20
+✅ Bio-Graph Training Complete.
+   🔎 Tuned best alpha=0.50 (Val Acc: 89.0%)
+   -> AIA after Task 20: 88.88% | Breakdown: ['85.0%', '84.6%', '92.2%', '86.3%', '87.6%', '90.9%', '88.2%', '89.2%', '89.4%', '91.2%', '90.7%', '93.4%', '86.0%', '84.4%', '93.3%', '87.2%', '91.8%', '86.6%', '92.0%', '87.5%']
+✅ Memory trace saved → outputs/memory_trace_tinyimagenet_siglip2.png / .svg
+   🧠 Bio-Graph Memory Footprint: 160.23 MB
+   ✅ Selected alpha: 1.00 (Tuned on 800 val samples)
+
+   🏆 Pure CIL Metrics -> AIA: 88.88% | Forgetting: 3.11%
+✅ Memory comparison saved → outputs/memory_comparison_tinyimagenet_siglip2.png / .svg
+
+✅ Ablations complete. Saved to results/sweep/ablation_tinyimagenet_siglip2_p512_seed42.json
