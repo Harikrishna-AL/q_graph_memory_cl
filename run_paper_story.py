@@ -44,6 +44,12 @@ def parse_args():
 
     parser.add_argument("--use_etf", action="store_true", help="Anchor prototypes to a fixed Equiangular Tight Frame (ETF)")
 
+    parser.add_argument("--seed", type=int, default=42, help="random seed")
+    parser.add_argument("--target_geometry", type=str, default="etf",
+                        choices=["etf", "onehot", "random"],
+                        help="analytic target frame; 'onehot' reproduces the ACIL encoding, "
+                             "'random' is the control")
+
     parser.add_argument("--raw-vector-budget-mb", type=float, default=None,
                         help="memory budget for stage 2c raw-vector exemplar baseline; if omitted, uses the TQM per-class node budget")
     parser.add_argument("--stages", nargs="+", type=str, default=["0", "1", "2", "2b", "2c", "3", "4", "5", "5b"], 
@@ -140,7 +146,8 @@ def main():
     Config.BIO_PAP_WEIGHT = args.pap_weight
     Config.BIO_ALIGN_DIM = args.align_dim
     Config.BIO_USE_ETF = args.use_etf
-    Config.SEED = 42
+    Config.SEED = args.seed
+    Config.BIO_TARGET_GEOMETRY = args.target_geometry
     
     # ── Backbone-Aware Alpha & Temp Selection ────────────────────────────────
     default_alpha = 0.6  # Default (more episodic weight)
@@ -151,7 +158,7 @@ def main():
     print(f"🧪 Auto-tuned Alpha for {Config.BACKBONE}: {default_alpha}")
     print(f"🧪 Adjusted Node Temp for {Config.BACKBONE}: {node_temp}")
 
-    set_seed(42)
+    set_seed(Config.SEED)
     
     # 1. Load Features
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(args.backbone.lower().strip(), 384)

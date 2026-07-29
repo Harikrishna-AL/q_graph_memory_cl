@@ -1,0 +1,57 @@
+\section{Results}
+\label{sec:results}
+
+We evaluate MAYA across three benchmarks (ImageNet-R, TinyImageNet, ObjectNet) and three frozen encoders (ResNet50, DINOv3, SigLIP2). We organise the results around three questions. First, does explicit geometric correction close the gap between a centroid classifier and gradient-trained replay (Section~\ref{sec:mechanics})? Second, given that MAYA stores sample-derived vectors, is that memory well spent relative to storing the vectors directly (Section~\ref{sec:matched})? Third, how does MAYA compare to analytic methods that store only sufficient statistics (Section~\ref{sec:sota})? We close by stating explicitly where MAYA is the wrong choice (Section~\ref{sec:whennot}).
+
+All results in this section use a single seed (42) and are therefore preliminary with respect to differences below roughly two AIA points; see Section~\ref{sec:limitations}.
+
+\subsection{Mechanics of Geometric Correction}
+\label{sec:mechanics}
+
+Table~\ref{tab:mechanics} compares MAYA against the standard replay paradigms.
+
+\input{tables/table1_mechanics.tex}
+
+\textbf{Correcting geometric bias.} The limitations of Nearest Class Mean are clearest where the frozen representation is poorly matched to the class stream. On ObjectNet with DINOv3, NCM reaches only $47.9\%$; MAYA reaches $76.0\%$. On this configuration MAYA also exceeds the gradient-trained ER+MLP head ($73.0\%$) while using less memory, without any gradient descent.
+
+\textbf{Relative to replay.} The broader pattern is more mixed and we state it plainly: MAYA exceeds ER+MLP in three of nine configurations (ObjectNet/DINOv3, ObjectNet/SigLIP2, ImageNet-R/ResNet50) and trails it in the remaining six, by between $0.3$ and $3.4$ points. What is consistent is the memory: MAYA uses less than ER+MLP in eight of nine configurations, and on TinyImageNet it uses $38$--$44\%$ as much. The claim we make is therefore about the trade-off, not about dominance --- MAYA reaches comparable accuracy to a gradient-trained replay head at a substantially smaller and explicitly bounded memory budget.
+
+\subsection{Is the Memory Well Spent? A Matched-Budget Comparison}
+\label{sec:matched}
+
+MAYA's episodic memory stores vectors derived from individual samples, which places it in the same family as replay methods rather than with the statistics-only analytic methods. The relevant question for such a method is not whether it uses memory, but whether it uses memory better than storing the samples directly. Table~\ref{tab:matched} answers this by giving a raw-feature exemplar buffer the same budget MAYA consumes.
+
+\input{tables/table4_matched_memory.tex}
+
+At a matched budget, structured episodic nodes outperform an unstructured feature buffer in \emph{all nine} configurations, by a mean of $16.0$ points and by as much as $47.2$ on ObjectNet with DINOv3. This is the clearest evidence we have that the local memory is doing structural work rather than merely caching data: the same bytes, allocated to nodes maintained under the global alignment, are worth substantially more than the same bytes allocated to stored feature vectors.
+
+We note one caveat. The raw-vector baseline selects exemplars without a selection strategy; a herding-based selector would be a stronger comparison, and we regard the magnitude of this gap as an upper bound on the advantage.
+
+\subsection{Comparison with Analytic Methods}
+\label{sec:sota}
+
+Table~\ref{tab:sota} compares MAYA with frozen-backbone analytic CIL methods that store only sufficient statistics.
+
+\input{tables/table2_sota.tex}
+
+MAYA achieves the best accuracy of the four methods on ObjectNet with DINOv3 ($76.0\%$ against $75.7\%$ for Exact ACL), the configuration with the most out-of-distribution class geometry, and it matches Exact ACL on TinyImageNet/SigLIP2. In the remaining seven configurations an analytic baseline is more accurate. We do not claim state-of-the-art accuracy.
+
+The memory comparison is unfavourable and we state it directly. SLDA and ACL maintain an $O(d^2)$ covariance --- $10$--$69$MB across our backbones --- while MAYA's footprint ranges from $114$ to $555$MB, since it retains that same order of statistics \emph{plus} the node bank. Where MAYA is competitive on accuracy, it is not competitive on accuracy per megabyte.
+
+What MAYA provides that these methods structurally cannot is an explicit, addressable memory. SLDA and ACL accumulate their evidence into a single monolithic matrix from which no individual concept can be located or removed; MAYA's nodes are discrete and per-class, which permits inspection and targeted deletion. They also give up the privacy property that motivates analytic CL: retaining sample-derived vectors is a real cost, and we count it as one.
+
+\subsection{When MAYA Is Not the Right Choice}
+\label{sec:whennot}
+
+Because accuracy-per-byte is the axis on which MAYA is weakest, we characterise it explicitly rather than leave it to be inferred. Figure~\ref{fig:pareto_audit} audits, for every configuration, whether any baseline achieves higher accuracy at or below MAYA's own memory budget.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/pareto_audit.pdf}
+    \caption{\textbf{Accuracy-memory position.} \textbf{(a)} ObjectNet/DINOv3. Sweeping $K$ traces MAYA along a curve --- its footprint is a tunable knob, which the analytic baselines do not have --- but Exact ACL sits above that curve at a fraction of the memory. \textbf{(b)} Across all nine configurations, a cheaper baseline is more accurate in eight.}
+    \label{fig:pareto_audit}
+\end{figure}
+
+MAYA sits on the accuracy-memory Pareto frontier in one of nine configurations. In the other eight, a statistics-only method using between $5\times$ and $25\times$ less memory is equally or more accurate. Panel (a) shows why sweeping $K$ does not fix this: MAYA's cheapest operating point still costs more than ACL's fixed footprint while scoring far lower.
+
+The practical reading is that MAYA is not the right choice when accuracy per megabyte is the binding constraint, and it is a reasonable choice when the deployment needs a bounded, inspectable, editable memory --- or when the frozen representation is badly matched to the class stream, which is where its accuracy advantage concentrates.

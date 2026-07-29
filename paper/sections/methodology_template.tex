@@ -1,0 +1,127 @@
+\section{Proposed Method: MAYA (Manifold Alignment Yielding Accuracy)}
+\label{sec:method}
+
+\subsection{Problem Formulation and Notation}
+\label{sec:method_formulation}
+In Class Incremental Learning (CIL), a model observes a continuous stream of data $\{(x_t, y_t)\}_{t=1}^T$, where $x_t \in \mathcal{X}$ is an image and $y_t \in \mathcal{Y}$ is its corresponding label. The label space $\mathcal{Y}$ expands over time as new classes are introduced, and task identities are strictly unavailable during inference. 
+
+We operate under the resource-constrained \textit{frozen-backbone} setting. Let $f_\theta: \mathcal{X} \rightarrow \mathbb{R}^d$ denote a large, pre-trained vision encoder (e.g., DINOv3 or SigLIP) whose weights $\theta$ remain permanently frozen. The objective is to learn a mapping from the extracted feature space $h = f_\theta(x)$ to the expanding label space $\mathcal{Y}$. Crucially, to remain memory-efficient and biologically plausible, the system must learn from the data stream sequentially without buffering raw images $x_t$ for extensive gradient-based experience replay.
+
+\subsection{The Geometric Bias of Pre-Trained Features}
+\label{sec:method_bias}
+The simplest and most computationally efficient approach to frozen-backbone CIL is the Nearest Class Mean (NCM) classifier. NCM classifies a test sample by computing its distance to a set of streaming running averages $\mu_c$, where $\mu_c = \frac{1}{N_c} \sum_{i=1}^{N_c} h_i^{(c)}$.
+
+While algorithmically elegant, NCM relies on a fatal assumption: that the native geometry of the pre-trained feature space $f_\theta$ naturally linearly separates novel, out-of-distribution classes. In practice, pre-trained encoders exhibit severe geometric bias, as their feature spaces are heavily contoured to optimize their original pre-training objective (e.g., ImageNet-1K classification or web-scale contrastive alignment). If the representations of two novel classes overlap in this native space, NCM will fail catastrophically regardless of how much data is observed. To achieve high accuracy in CIL, the model must explicitly unwarp this biased feature space.
+
+\subsection{Global Alignment via Analytic ETF Projection}
+\label{sec:method_etf}
+Recent advances in the theoretical understanding of Neural Collapse demonstrate that under optimal conditions, deep classifiers converge to a highly specific geometry known as an Equiangular Tight Frame (ETF). An ETF is a configuration of vectors that achieves the maximum possible pairwise separation under a fixed norm. 
+
+Rather than relying on iterative gradient descent to slowly mold the feature space toward this ideal, MAYA explicitly defines a fixed ETF matrix $M \in \mathbb{R}^{p \times C}$ as the target geometry, where $p$ is the chosen projection embedding dimension and $C$ is the total number of classes. Let $h \in \mathbb{R}^D$ denote the extracted backbone features. The algorithm learns a global projection matrix $W \in \mathbb{R}^{D \times p}$ analytically, such that the aligned features $z = W^T h \in \mathbb{R}^p$ map onto the columns of $M$. Given an incoming block of features $X \in \mathbb{R}^{B \times D}$ and their corresponding ideal ETF targets $Y_{ETF} \in \mathbb{R}^{B \times p}$, we formulate a regularized least-squares objective:
+\begin{equation}
+    W^* = \arg\min_W \| X W - Y_{ETF} \|_F^2 + \lambda \|W\|_F^2
+\end{equation}
+Because data arrives in a stream, re-solving this objective over all data seen so far is not possible: past features are not retained. Instead, MAYA accumulates the two sufficient statistics the normal equations require --- the uncentred second-moment matrix $\Sigma \gets \Sigma + H^\top H$ and the cross-correlation $\Phi \gets \Phi + H^\top Y_{ETF}$ --- and recovers the projection by solving the regularized system $(\Sigma + \lambda I) W^* = \Phi$ at each consolidation step. Both accumulators are additive, so the solution obtained at any point is exactly the solution the batch objective would give over all data observed to that point, independently of the order in which classes arrived. Old classes therefore cannot be degraded by the arrival of new ones, which is the sense in which the update is stable: no iterative optimization is performed and there is no gradient drift.
+
+We note that the cost of this step is a $D \times D$ solve per consolidation rather than a rank-one update. The Sherman-Morrison-Woodbury identity would permit incremental inversion, and is what related analytic methods use; our implementation solves the system directly, which is simpler and, at our consolidation frequency, not the bottleneck. The resulting $W^*$ is identical either way.
+
+\subsection{Local Manifold Tracking via the Episodic Memory}
+\label{sec:method_nodes}
+While the analytic ETF projection successfully forces the \textit{centers} of different classes apart, it implicitly assumes homoscedasticity---that every class shares a uniform, spherical shape. Real-world vision datasets deeply violate this assumption. Classes are highly multi-modal; a "Car" viewed from the front looks drastically different than a "Car" viewed at night or from the side. Representing these complex topological manifolds with a single target vector results in significant information loss.
+
+To resolve this, MAYA maintains an \textit{Episodic Memory}: a bounded set of at most $K$ nodes per class, $\{v_{c,1}, \dots, v_{c,K}\}$, rather than a single mean. Nodes are constructed at consolidation rather than one sample at a time. Features from the current block are buffered; at consolidation the projection $W^*$ is re-solved first, the buffered features are mapped through it, and each class's features are clustered into $k = \min(k_{\max}, N_c)$ groups by $k$-means \emph{in the aligned space}. Clustering after projection is deliberate: it is the aligned geometry, not the raw one, whose residual structure the memory is meant to capture, so the modes it discovers are the ones the global projection failed to resolve rather than the biases the projection was built to remove.
+
+Each resulting cluster contributes one node. The node vector itself is the normalized mean of the cluster's features in the \emph{backbone} space, not in the projected space:
+\begin{equation}
+    v_{c,i} = \frac{\bar{h}_{c,i}}{\|\bar{h}_{c,i}\|_2},
+    \qquad
+    \bar{h}_{c,i} = \frac{1}{|\mathcal{C}_{c,i}|} \sum_{t \in \mathcal{C}_{c,i}} h_t ,
+    \label{eq:node_update}
+\end{equation}
+where $\mathcal{C}_{c,i}$ is the $i$-th cluster of class $c$. Storing nodes in backbone coordinates matters because $W^*$ keeps changing as new classes arrive: a node held in projected coordinates would be expressed in a mapping that later drifts, whereas a backbone-space node stays valid and is simply re-projected at scoring time.
+
+Because a block can propose more nodes than the budget allows, nodes are pruned to $K$ per class after each consolidation. Retention is by an importance score formed from each node's accumulated activation statistics --- how often it has been the nearest node, how strongly, how consistently, and how often that assignment agreed with the node's own label --- so the memory preferentially keeps modes that are both frequently used and reliably discriminative. The footprint is thus bounded by construction at $K$ vectors per class; Section~\ref{sec:ablations} sweeps $K$.
+
+The two mechanisms are complementary. The global ETF projection separates the broad class neighbourhoods; the local Episodic Memory maps the structure within them. Because the memory holds $K$ vectors per class rather than raw images, it is far cheaper than image-level replay, and unlike a monolithic covariance accumulator it remains addressable: individual concepts can be inspected or deleted. We quantify the memory cost against a matched-budget exemplar buffer in Section~\ref{sec:matched}.
+
+\begin{algorithm}[htbp]
+\caption{MAYA: Online Training Phase}
+\label{alg:maya_train}
+\begin{algorithmic}[1]
+\REQUIRE Frozen backbone $f_\theta$, feature dim $D$, classes $C$, node budget $K$, clusters per block $k_{\max}$, regularization $\lambda$
+\ENSURE Projection $W^*$, Episodic Memory nodes $\mathcal{G}$
+
+\STATE \textbf{Initialization:}
+\STATE Generate fixed Equiangular Tight Frame $M \in \mathbb{R}^{p \times C}$
+\STATE $\Sigma \gets \lambda I_{D \times D}$, \quad $\Phi \gets \mathbf{0}_{D \times p}$, \quad $\mathcal{G} \gets \emptyset$, \quad $\mathcal{B} \gets \emptyset$
+\STATE
+
+\FOR{each incoming batch $(X, Y)$ in the stream}
+    \STATE Extract features $H = f_\theta(X)$; retrieve ETF targets $Y_{ETF}$ from $M$ via $Y$
+    \STATE \textit{\% 1. Accumulate sufficient statistics (order-independent, exact)}
+    \STATE $\Sigma \gets \Sigma + H^\top H$, \quad $\Phi \gets \Phi + H^\top Y_{ETF}$
+    \STATE \textit{\% 2. Buffer this block and refresh node usage statistics}
+    \STATE $\mathcal{B} \gets \mathcal{B} \cup (H, Y)$
+    \STATE For each $h_i$, update freq / strength / consistency / fidelity of its nearest node in $\mathcal{G}$
+    \STATE
+    \IF{end of block}
+        \STATE \textit{\% 3. Consolidation}
+        \STATE Solve $\Sigma\, W^* = \Phi$ \COMMENT{$\Sigma$ carries the $\lambda I$ initialisation}
+        \STATE Project the buffer: $Z \gets \mathrm{normalize}(\mathcal{B}_H \, W^*)$
+        \FOR{each class $c$ present in $\mathcal{B}$}
+            \STATE Cluster $Z_c$ into $k = \min(k_{\max}, N_c)$ groups by $k$-means \COMMENT{in aligned space}
+            \FOR{each cluster $\mathcal{C}_{c,i}$}
+                \STATE Append node $v_{c,i} \gets \mathrm{normalize}\big(\mathrm{mean}(\mathcal{B}_H[\mathcal{C}_{c,i}])\big)$ \COMMENT{stored in backbone space}
+            \ENDFOR
+        \ENDFOR
+        \STATE Score every node by importance $\omega$ from its activation statistics
+        \STATE Prune each class to its top-$K$ nodes by $\omega$
+        \STATE $\mathcal{B} \gets \emptyset$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Inference}
+\label{sec:method_inference}
+During inference, a test image $x_{test}$ is classified via a purely deterministic, feed-forward process devoid of any gradient updates or task boundaries. First, the raw feature is extracted via the frozen backbone, yielding $h = f_\theta(x_{test})$. This feature is then immediately mapped into the globally aligned ETF space using the learned analytic projection, $z = (W^*)^T h$. 
+
+To perform robust classification, MAYA utilizes a dual-system decision rule that blends global semantic alignment with local topological precision. First, the global branch computes the similarity $s_{global}(c|z)$ between the aligned feature $z$ and the global class target $m_c$ (from the ETF or running mean). Second, the episodic branch computes a local score $s_{local}(c|z)$ based on the distance to the nearest local node for that class in the Episodic Memory:
+\begin{equation}
+    s_{local}(c|z) = - \min_{k \in [1, K]} \| z - v_{c,k} \|_2^2
+\end{equation}
+The final prediction $\hat{y}$ is obtained by blending these scores with a balancing hyperparameter $\beta \in [0, 1]$:
+\begin{equation}
+    \hat{y} = \arg\max_{c \in \mathcal{Y}} \left( \beta \cdot s_{global}(c|z) + (1 - \beta) \cdot s_{local}(c|z) \right)
+    \label{eq:blend}
+\end{equation}
+This dual-stage process ensures that global geometric bias is corrected via the alignment projection, while precise, multi-modal class manifolds are preserved and traversed via the episodic nodes, leading to highly robust inference on complex data.
+
+\begin{algorithm}[htbp]
+\caption{MAYA: Inference Phase}
+\label{alg:maya_infer}
+\begin{algorithmic}[1]
+\REQUIRE Pre-trained frozen backbone $f_\theta$, Learned projection $W^*$, Episodic Memory $\mathcal{G}$, Class targets $m_c$, Test image $x_{test}$, blend factor $\beta$
+\ENSURE Predicted class label $\hat{y}$
+
+\STATE Extract raw feature $h = f_\theta(x_{test})$
+\STATE Map to globally aligned ETF space: $z = (W^*)^T h$
+
+\STATE \textit{\% 1. Global Branch: Target Similarity}
+\FOR{each class $c$}
+    \STATE Compute global score: $s_{global}(c|z) = \text{sim}(z, m_c)$
+\ENDFOR
+
+\STATE \textit{\% 2. Local Branch: Episodic Memory Distance}
+\FOR{each class $c$}
+    \STATE Find nearest node distance: $d_{min} = \min_{k} \| (W^*)^T h - (W^*)^T v_{c,k} \|_2^2$
+    \STATE Compute local score: $s_{local}(c|z) = - d_{min}$
+\ENDFOR
+
+\STATE \textit{\% 3. Dual-System Decision}
+\STATE $\hat{y} = \arg\max_{c} \left[ \beta \cdot s_{global}(c|z) + (1 - \beta) \cdot s_{local}(c|z) \right]$
+\RETURN class label $\hat{y}$
+
+\end{algorithmic}
+\end{algorithm}

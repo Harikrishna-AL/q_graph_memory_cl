@@ -1,0 +1,34 @@
+\subsection{Ablation Studies}
+\label{sec:ablations}
+
+To isolate the contributions of the global ETF projection and the local Episodic Memory, we run a component ablation across all nine dataset $\times$ backbone configurations. We also analyse MAYA's sensitivity to its memory budget $K$ and to the regularization coefficient $\lambda$. All numbers in this subsection come from a single seed (42); see Section~\ref{sec:limitations}.
+
+\subsubsection{Component Contribution: Global vs.\ Local Correction}
+Table~\ref{tab:components} decomposes MAYA into its two geometric corrections. Because the inference rule of Eq.~\ref{eq:blend} is a blend controlled by $\beta$, we can isolate each branch by fixing $\beta$: $\beta{=}0$ uses the global projection alone (one target per class), and $\beta{=}1$ uses the episodic memory alone. The final column reports the tuned blend.
+
+\input{tables/table3_components.tex}
+
+Two findings follow, and the second qualifies the first.
+
+\textbf{Global alignment is the larger lever, but it is not universal.} Averaged over the nine configurations, the analytic ETF projection improves on Standard NCM by $+5.7$ AIA points, against $+1.0$ for the episodic memory on top of it. The effect is extremely uneven, ranging from $-1.5$ to $+26.8$ points. Its best case is ObjectNet with DINOv3, where NCM in the native feature space reaches only $47.9\%$ and the projection alone recovers $74.6\%$ --- consistent with our claim that a frozen backbone's geometry can be severely misaligned with a downstream class stream. But alignment is \emph{negative} in two of nine configurations (ImageNet-R/SigLIP2, $-0.7$; ObjectNet/ResNet50, $-1.5$). When the frozen representation already separates the downstream classes well, or is too weak for the projection to exploit, imposing an ETF target geometry does not help and can mildly hurt. We are not aware of this failure mode being reported in the analytic continual-learning literature, and we do not currently have a predictive account of when it occurs.
+
+\textbf{The episodic memory is smaller but strictly reliable.} Its contribution never falls below zero (nine of nine configurations, $+0.1$ to $+2.4$ points), and it is largest exactly where global alignment does worst: it recovers $+2.0$ points on ObjectNet/ResNet50 and $+2.4$ on ObjectNet/SigLIP2, the two settings where the projection contributes least. This supports reading the local memory as a robustness mechanism rather than a route to peak accuracy.
+
+\textbf{The blend contributes little over the episodic branch alone.} Comparing the last two columns, the tuned blend improves on $\beta{=}1$ by $+0.09$ points on average and by at most $+0.4$. In four of nine configurations the tuned $\beta$ is degenerate --- $0.0$ on ImageNet-R/DINOv3 and TinyImageNet/DINOv3, $1.0$ on TinyImageNet/ResNet50 and ObjectNet/SigLIP2 --- so the dual-system rule reduces to a single branch. We therefore do not claim that combining the two scores is itself a source of accuracy; the honest reading is that the episodic branch subsumes the global one at inference time once the projection has been applied, and that $\beta$ is best understood as a per-domain selector between two scoring rules rather than as a genuine blend.
+
+\subsubsection{Memory Budget Analysis ($K$-Sweep)}
+To test whether the Episodic Memory captures topological structure rather than acting as a plain instance buffer, we sweep the node budget $K$. Figure~\ref{fig:ablation_k_sweep}(a) plots ObjectNet with DINOv3 against two references: Standard NCM, and the global-projection-only configuration.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/k_sweep_ablation.pdf}
+    \caption{\textbf{Node budget ($K$) ablation.} \textbf{(a)} ObjectNet/DINOv3. Accuracy rises steeply from $K{=}1$ and flattens by $K{=}64$, exceeding the global-projection-only reference at $K{\geq}64$. \textbf{(b)} The same sweep for all nine configurations, plotted relative to each configuration's own $K{=}128$ result; the $K{=}1$ deficit is systematic.}
+    \label{fig:ablation_k_sweep}
+\end{figure}
+
+Accuracy climbs steeply between $K{=}1$ and $K{=}16$, then flattens: $K{=}64$ reaches $75.0\%$ and $K{=}128$ only $75.4\%$. A compact discrete memory is therefore sufficient, and the budget can be cut roughly in half at a cost of $0.4$ points.
+
+We flag one result we cannot yet explain. At $K{=}1$ the episodic branch reaches $36.8\%$, which is below \emph{both} references --- below Standard NCM ($47.9\%$) and far below the global projection alone ($74.6\%$). A single node per class and a single class mean per class occupy the same aligned space and represent the same amount of information, so a $37.8$-point gap between them is not explained by representational capacity. Figure~\ref{fig:ablation_k_sweep}(b) shows the same pattern in all nine configurations. We report it rather than omit it: it indicates that the low-$K$ regime of our streaming node construction is not yet well characterised, and it means the $K$-sweep should be read as evidence that a compact memory \emph{suffices}, not as evidence that $K{=}1$ is a representational bottleneck.
+
+\subsubsection{Hyperparameter Stability}
+We evaluate sensitivity to $\lambda$, the regularization coefficient in the recursive least-squares solve, over $\lambda \in \{0.01, 0.1, 0.5\}$. Across all nine configurations the largest spread in AIA is $0.39$ points, and in five of nine it is below $0.2$. The analytic projection is therefore insensitive to $\lambda$ over more than an order of magnitude, and needs no per-dataset tuning.

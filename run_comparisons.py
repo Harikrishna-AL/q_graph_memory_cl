@@ -18,6 +18,8 @@ def parse_args():
     parser.add_argument("--dataset", type=str, default="tinyimagenet", help="cifar100, tinyimagenet, imagenet-r, objectnet")
     parser.add_argument("--backbone", type=str, default="dinov3", help="dinov3, siglip2, resnet50")
     parser.add_argument("--ranpac_dim", type=int, default=10000, help="Projection dimension for RanPAC")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="random seed; non-default seeds write to results/sweep/")
     return parser.parse_args()
 
 def main():
@@ -30,7 +32,8 @@ def main():
     
     Config.DATASET = args.dataset
     Config.BACKBONE = args.backbone
-    set_seed(42)
+    Config.SEED = args.seed
+    set_seed(args.seed)
     
     # 1. Load Features
     # Fallback for old names if needed, but we assume cached features exist
@@ -142,7 +145,11 @@ def main():
     
     # Save to JSON
     os.makedirs("results/comparisons", exist_ok=True)
-    out_path = f"results/comparisons/sota_{args.dataset}_{args.backbone}.json"
+    if args.seed == 42:
+        out_path = f"results/comparisons/sota_{args.dataset}_{args.backbone}.json"
+    else:
+        os.makedirs("results/sweep", exist_ok=True)
+        out_path = f"results/sweep/sota_{args.dataset}_{args.backbone}_seed{args.seed}.json"
     with open(out_path, 'w') as f:
         json.dump(final_metrics, f, indent=4)
     print(f"💾 Results saved to {out_path}")

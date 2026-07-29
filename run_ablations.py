@@ -16,7 +16,7 @@ def run_standard_ncm_baseline(features, labels, backbone_name):
     print(f"\n📏 Running Standalone NCM Baseline (Stage 1 Logic)...")
     
     # Setup splits
-    set_seed(42)
+    set_seed(Config.SEED)
     unique_labels = np.unique(labels)
     label_map = {old_val: i for i, old_val in enumerate(unique_labels)}
     labels = np.array([label_map[l] for l in labels])
@@ -73,7 +73,7 @@ def run_standard_ncm_baseline(features, labels, backbone_name):
     return aia, mem_mb, forgetting
 
 def run_experiment(backbone, dataset, **overrides):
-    set_seed(42)
+    set_seed(Config.SEED)
     Config.BACKBONE = backbone
     Config.DATASET = dataset
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(backbone, 384)
@@ -118,7 +118,7 @@ def run_experiment(backbone, dataset, **overrides):
         # and we set a flag that evaluators will (hopefully) respect
         args.alpha = 0.0
         
-    aia, mem, hist = run_single_experiment(42, features, remapped_labels, args, run_benchmarks=False)
+    aia, mem, hist = run_single_experiment(Config.SEED, features, remapped_labels, args, run_benchmarks=False)
     forge = compute_average_forgetting(hist) if hist is not None else 0.0
     return aia, mem, forge
 
@@ -126,10 +126,26 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backbone", type=str, default="siglip2")
     parser.add_argument("--dataset", type=str, default="objectnet")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="random seed; results are written to a seed-specific file")
+    parser.add_argument("--target-geometry", dest="target_geometry", type=str, default="etf",
+                        choices=["etf", "onehot", "random"],
+                        help="analytic target frame. 'onehot' reproduces the ACIL encoding, "
+                             "'random' is the control. Compare all three at one --align-dim.")
+    parser.add_argument("--align-dim", dest="align_dim", type=int, default=None,
+                        help="target/alignment dimension p (default: Config.BIO_ALIGN_DIM). "
+                             "Must be >= n_classes for --target-geometry onehot.")
     args = parser.parse_args()
+
+    Config.SEED = args.seed
+    Config.BIO_TARGET_GEOMETRY = args.target_geometry
+    if args.align_dim is not None:
+        Config.BIO_ALIGN_DIM = args.align_dim
+    set_seed(Config.SEED)
     
     os.makedirs("results", exist_ok=True)
-    results = {}
+    results = {"config": {"dataset": None, "backbone": None, "seed": None,
+                          "target_geometry": None, "align_dim": None}}
 
     Config.BACKBONE = args.backbone
     Config.FEATURE_DIM = _BACKBONE_DIMS.get(args.backbone, 384)
@@ -178,7 +194,13 @@ def main():
         aia, mem, forge = run_experiment(args.backbone, args.dataset, bio_max_nodes_per_class=k, alpha=0.5)
         results["k_sweep"].append({"k": k, "aia": aia, "mem": mem, "forgetting": forge})
 
-    out_path = f"results/ablation_{args.backbone}_{args.dataset}.json"
+    tag = f"_{args.target_geometry}" if args.target_geometry != "etf" else ""
+    tag += f"_p{Config.BIO_ALIGN_DIM}" if args.align_dim is not None else ""
+    os.makedirs("results/sweep", exist_ok=True)
+    out_path = f"results/sweep/ablation_{args.dataset}_{args.backbone}{tag}_seed{args.seed}.json"
+    results["config"] = {"dataset": args.dataset, "backbone": args.backbone,
+                         "seed": args.seed, "target_geometry": args.target_geometry,
+                         "align_dim": Config.BIO_ALIGN_DIM}
     with open(out_path, "w") as f: json.dump(results, f, indent=4)
     print(f"\n✅ Ablations complete. Saved to {out_path}")
 

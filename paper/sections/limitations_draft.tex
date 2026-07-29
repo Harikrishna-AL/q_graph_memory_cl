@@ -1,0 +1,22 @@
+\section{Limitations}
+\label{sec:limitations}
+
+We state the limits of the evidence and of the method directly, because several of them bound how the results above should be read.
+
+\textbf{Single seed.} Every number in this paper comes from one run at seed 42. Differences below roughly two AIA points should be treated as provisional, and this includes our best result against the analytic baselines: MAYA leads Exact ACL on ObjectNet/DINOv3 by $0.3$ points, which one seed cannot establish. We report the margin rather than round it away, but we do not build a claim on it.
+
+\textbf{Not Pareto-optimal in accuracy per byte.} As Section~\ref{sec:whennot} quantifies, a statistics-only method using $5$--$25\times$ less memory equals or beats MAYA in eight of nine configurations. MAYA's footprint contains an $O(D^2)$ accumulator comparable to what ACL stores, \emph{plus} the node bank; the node bank is the marginal cost, and on most configurations it does not buy accuracy. Our positive claims are about the matched-budget comparison against data-storing methods (Section~\ref{sec:matched}) and about the properties in the next paragraph, not about accuracy per megabyte.
+
+\textbf{No privacy guarantee.} Analytic continual learning methods retain only aggregate statistics, from which individual training samples cannot be recovered; that property is an explicit contribution of ACIL and related work. MAYA's nodes are means of small clusters of individual feature vectors, so it forfeits this. Any deployment where the statistics-only property is the reason for choosing an analytic method should not substitute MAYA.
+
+\textbf{The ETF target is not ablated against alternatives.} We argue that projecting onto a maximally separated fixed frame is preferable to regressing onto one-hot labels as existing analytic methods do, but we do not isolate that choice: we have not run MAYA with one-hot targets, nor with random fixed targets as a control. The comparison against ACL confounds the target geometry with the rest of the pipeline. This is the most important experiment missing from this paper.
+
+\textbf{Global alignment can hurt.} The analytic projection is negative in two of nine configurations (ImageNet-R/SigLIP2, ObjectNet/ResNet50). We report this but cannot yet predict it; the gain is not explained by how much headroom NCM leaves.
+
+\textbf{The low-$K$ regime is not understood.} At $K{=}1$ the episodic branch falls below both Standard NCM and the global-projection-only configuration, in all nine settings, despite representing the same information as a single class mean. We suspect an interaction between the importance-based pruning rule and the small number of activation statistics available when only one node per class survives, but we have not isolated it. The $K$-sweep should therefore be read as showing that a compact memory suffices, not that $K{=}1$ is a representational bottleneck.
+
+\textbf{$\beta$ is tuned, and the blend is close to degenerate.} The inference rule is presented as a dual-system blend, but $\beta$ is selected per task on validation data, and the selected value is $0$ or $1$ in four of nine configurations. The blend improves on using the episodic branch alone by at most $0.4$ points. We therefore do not claim the combination rule is itself a contribution.
+
+\textbf{Missing comparisons.} We do not compare against per-class covariance methods such as FeCAM, which relax the same homoscedasticity assumption we criticise in SLDA and ACL but without an episodic memory; against herding-based exemplar selection, which would be a stronger matched-memory baseline than the unstructured buffer we use; or against a joint offline linear probe, which would establish a ceiling. We also do not report inference latency, which for MAYA grows with the number of stored nodes and is a real cost the accuracy-memory framing omits.
+
+\textbf{Scope.} All results use frozen backbones on cached features, three datasets, and a single class ordering per dataset. We have not tested sensitivity to class order or to the number of tasks, and we do not evaluate settings where the backbone is adapted.

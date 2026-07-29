@@ -1,0 +1,56 @@
+\section{Experiments}
+\label{sec:experiments}
+
+% NOTE: this file is the Experiments/Setup section only. The Results section
+% previously duplicated here has moved to results_section_draft.tex; keeping both
+% produced duplicate table and section label definitions.
+
+\subsection{Setup}
+We evaluate MAYA in an online class-incremental setting: classes arrive sequentially in disjoint tasks and task identity is unavailable at inference. All backbones are frozen throughout; features are extracted once and cached, so every method in our comparison sees identical inputs.
+
+\textbf{Backbones.} ResNet50 ($D{=}2048$), DINOv3 ViT-7B/16 (\texttt{vit\_7b\_patch16\_dinov3.lvd1689m}, $D{=}4096$), and SigLIP2 ViT-g-opt/16-384 ($D{=}1536$). These span a supervised convolutional encoder, a large self-supervised transformer, and a contrastively pre-trained vision-language encoder.
+
+\textbf{Benchmarks.} ImageNet-R (200 classes of artistic and rendered styles, 20 tasks of 10 classes), TinyImageNet (200 classes, 20 tasks of 10 classes), and ObjectNet (300 classes of out-of-context object views, 15 tasks of 20 classes). Within each task we use an $80/20$ train/test split.
+
+\textbf{Baselines.} We compare against two families, and we keep the distinction explicit because it determines what a memory comparison means.
+
+The first family \emph{stores sample-derived data}, as MAYA does: Nearest Class Mean (NCM) on raw backbone features; Basic Replay, a feature buffer classified by nearest neighbour; ER+MLP, which trains a multi-layer perceptron head on buffered features; a memory-matched raw-vector exemplar buffer given the same budget MAYA consumes; and a Nodes-Only ablation using the episodic memory without the global projection.
+
+The second family \emph{stores only sufficient statistics}: Deep SLDA, which maintains running class means and a shared covariance; Exact ACL, which solves recursive least squares incrementally via Sherman-Morrison updates; and RanPAC, which expands features to $M{=}10{,}000$ random dimensions before an analytic classifier. These methods retain no sample-derived vectors, and therefore offer a privacy property MAYA does not.
+
+We do not compare against prompt-based frozen-backbone methods (L2P, DualPrompt, CODA-Prompt). These optimize inserted prompt parameters by gradient descent through the backbone, which is orthogonal to the gradient-free regime studied here and impractical at the scale of a 7B encoder. We regard them as complementary rather than competing.
+
+\textbf{Metrics.} We report Average Incremental Accuracy (AIA), the mean of the accuracy measured after each task, and average forgetting. Alongside accuracy we track the exact memory footprint of all persistent state --- replay buffers, covariance and precision matrices, projection matrices, and episodic nodes --- measured by summing tensor sizes rather than estimated analytically.
+
+\subsection{Implementation Details}
+\label{sec:repro}
+
+Table~\ref{tab:hparams} lists every hyperparameter. We did not tune per dataset except where noted; Section~\ref{sec:ablations} shows the analytic projection is insensitive to $\lambda$ across more than an order of magnitude.
+
+\begin{table}[htbp]
+\centering
+\caption{Hyperparameters and protocol. Identical across all nine dataset $\times$ backbone configurations unless stated.}
+\label{tab:hparams}
+\begin{tabular}{lll}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Value} \\
+\midrule
+$K$        & max episodic nodes per class      & $128$ (swept over $\{1,16,64,128\}$) \\
+$k_{\max}$ & $k$-means clusters per class per block & $8$ \\
+$p$        & ETF / alignment dimension          & $256$ \\
+$\lambda$  & RLS regularization                 & $0.1$ (swept over $\{0.01,0.1,0.5\}$) \\
+$\beta$    & global/episodic blend              & selected per task on validation, grid $\{0.0,\dots,1.0\}$ \\
+$T$        & node scoring temperature           & $0.08$ ($0.12$ for SigLIP2 / ResNet50) \\
+--         & consolidation interval             & every block \\
+--         & batch size                         & $2048$ \\
+--         & train/test split per task          & $80/20$ \\
+--         & seed                               & $42$ (single seed; see Section~\ref{sec:limitations}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+$\beta$ is not a fixed constant. At each task it is selected on a held-out validation split drawn from the current task's training data, which is why Table~\ref{tab:components} reports both the fixed-$\beta$ endpoints and the tuned result. No test data is used for selection.
+
+Two evaluation protocols appear in this paper and we state the difference rather than eliding it. The main comparisons (Tables~\ref{tab:mechanics},~\ref{tab:matched},~\ref{tab:sota}) shuffle each task's data before the $80/20$ split; the component ablations (Table~\ref{tab:components}) use a fixed split. Numbers are therefore comparable within a table but not across the two groups; the residual difference on ObjectNet/DINOv3 is $0.6$ AIA points.
+
+All experiments run on cached features, so the reported cost excludes backbone forward passes, which are shared by every method and paid once per dataset.

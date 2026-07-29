@@ -1,0 +1,12 @@
+% Preamble requirements for the MAYA algorithm blocks.
+%
+% The algorithm bodies themselves live in methodology_template.tex, which is
+% where they appear in the compiled paper. They used to be duplicated here,
+% which defined \label{alg:maya_train} and \label{alg:maya_infer} twice and
+% made every \ref to them resolve to whichever copy LaTeX saw last.
+%
+% Put these two lines in the main document's preamble; do not \input this file
+% in the body.
+
+\usepackage{algorithm}
+\usepackage{algorithmic}

@@ -55,6 +55,10 @@ class Config:
     BIO_USE_DISCRIM_CONSOLIDATION = True
     BIO_CONSOLIDATION_MODE = "sgd" # options: "sgd", "analytic", or "nc_align"
     BIO_USE_ETF = False            # snap prototypes to Equiangular Tight Frame
+    BIO_TARGET_GEOMETRY = "etf"    # analytic target frame: "etf" | "onehot" | "random"
+                                   # "onehot" reproduces the ACIL target encoding;
+                                   # "random" is the control. Requires ALIGN_DIM >= n_classes
+                                   # for "onehot" -- see _generate_targets in model.py.
     BIO_ETF_MAX_CLASSES = 500      # pre-generate slots for 500 classes
     BIO_ALIGN_DIM = 256            # output dimension of alignment layer
     BIO_PAP_WEIGHT = 1.0           # weight for Pull-and-Push loss

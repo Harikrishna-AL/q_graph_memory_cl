@@ -572,7 +572,7 @@ class BioEpisodicGraph(nn.Module):
         if getattr(Config, "BIO_USE_ETF", False) or mode in ["nc_align", "analytic_etf"]:
             # For nc_align/analytic_etf, the ETF should match the ALIGN_DIM
             etf_dim = getattr(Config, "BIO_ALIGN_DIM", 256) if mode in ["nc_align", "analytic_etf"] else input_dim
-            self._etf_matrix = self._generate_simplex_etf(Config.BIO_ETF_MAX_CLASSES, etf_dim)
+            self._etf_matrix = self._generate_targets(Config.BIO_ETF_MAX_CLASSES, etf_dim)
         else:
             self._etf_matrix = None
 
@@ -630,6 +630,53 @@ class BioEpisodicGraph(nn.Module):
             self._proto_count[lbl] = 0.0
             self._proto_m2[lbl]    = torch.zeros(d, device=self.device)
             self._class_unc[lbl]   = 0.0
+
+    def _generate_targets(self, k, d, geometry=None):
+        """
+        Builds the fixed target matrix the analytic projection regresses onto.
+
+        Ablation hook for the paper's central methodological claim: MAYA solves
+        for a projection onto pre-defined ETF targets, where existing analytic
+        CL methods regress onto one-hot labels.  Swapping `geometry` isolates
+        that choice with everything else held fixed.
+
+          "etf"     simplex ETF -- maximally separated, equinorm, equiangular
+          "onehot"  axis-aligned unit vectors, i.e. the ACIL target encoding
+          "random"  random unit vectors -- control for "any fixed frame works"
+
+        Returns (k, d), one unit-norm target row per class.
+        """
+        geometry = (geometry or getattr(Config, "BIO_TARGET_GEOMETRY", "etf")).lower()
+
+        if geometry == "onehot":
+            if d < k:
+                raise ValueError(
+                    f"one-hot targets need target dim >= n_classes, got d={d} < k={k}. "
+                    f"Raise Config.BIO_ALIGN_DIM to at least {k} so all three geometries "
+                    f"are compared at the same dimension."
+                )
+            return torch.eye(k, d, device=self.device)
+
+        if geometry == "random":
+            # Seeded off Config.SEED so the control is reproducible and varies
+            # with the seed sweep exactly as the rest of the run does.
+            g = torch.Generator(device="cpu").manual_seed(int(getattr(Config, "SEED", 42)))
+            W = torch.randn(k, d, generator=g)
+            return F.normalize(W, p=2, dim=1).to(self.device)
+
+        if geometry != "etf":
+            raise ValueError(f"Unknown BIO_TARGET_GEOMETRY '{geometry}'")
+
+        M = self._generate_simplex_etf(k, d)
+        # A k-point simplex ETF spans only k-1 dimensions, so when d > k-1 the
+        # construction returns (k, k-1) and silently mismatches the (D, d) RLS
+        # accumulator. Zero-pad into R^d: the frame stays unit-norm and
+        # equiangular, it is just embedded in the larger target space. This
+        # matters whenever the target dim is raised to fit one-hot targets.
+        if M.shape[1] < d:
+            pad = torch.zeros(M.shape[0], d - M.shape[1], device=M.device, dtype=M.dtype)
+            M = torch.cat([M, pad], dim=1)
+        return M
 
     def _generate_simplex_etf(self, k, d):
         """
@@ -1111,7 +1158,7 @@ class BioEpisodicGraph(nn.Module):
 
         # Ensure ETF exists
         if self._etf_matrix is None or self._etf_matrix.shape[1] != d_out:
-            self._etf_matrix = self._generate_simplex_etf(Config.BIO_ETF_MAX_CLASSES, d_out)
+            self._etf_matrix = self._generate_targets(Config.BIO_ETF_MAX_CLASSES, d_out)
 
         # 2. Setup Optimization
         lr = float(getattr(Config, "BIO_DISC_LR", 0.01))
